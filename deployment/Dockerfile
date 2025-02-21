@@ -1,4 +1,4 @@
-FROM golang:1.23.1 as builder
+FROM golang:1.23.1 AS builder
 
 ARG upx_version=4.0.0
 ARG GOPROXY
@@ -20,6 +20,6 @@ RUN export VERSION=$(git describe --tags --always --dirty); CGO_ENABLED=0 GOOS=l
     strip app && \
     /usr/local/bin/upx --best --lzma app
 
-FROM alpine:latest as shared-lock
+FROM alpine:latest AS shared-lock
 WORKDIR /app
 COPY --from=builder /app/app /usr/bin/shared-lock
