@@ -3,11 +3,16 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 const (
-	DefaultServerPort               = ":8080"
-	DefaultEtcdAddr                 = "localhost:2379"
+	DefaultServerPort               = "8080"
+	DefaultServerReadTimeout        = 10 * time.Second
+	DefaultServerWriteTimeout       = 10 * time.Second
+	DefaultServerIdleTimeout        = 120 * time.Second
+	DefaultServerShutdownTimeout    = 10 * time.Second
+	DefaultEtcdAddrList             = "localhost:2379"
 	DefaultEtcdTLSEnabled           = false
 	DefaultEtcdServerCACertPath     = "/etc/etcd/ca.crt"
 	DefaultEtcdServerClientCertPath = "/etc/etcd/client.crt"
@@ -15,23 +20,43 @@ const (
 )
 
 type Config struct {
-	ServerPort string
-	EtcdCfg    EtcdCfg
+	Server ServerCfg
+	Etcd   EtcdCfg
+}
+
+type ServerCfg struct {
+	Port    string
+	Timeout ServerTimeout
+}
+
+type ServerTimeout struct {
+	Read     time.Duration
+	Write    time.Duration
+	Idle     time.Duration
+	Shutdown time.Duration
 }
 
 type EtcdCfg struct {
-	EtcdAddr             string
+	EtcdAddrList         string
 	TLSEnabled           bool
 	ServerCACertPath     string
 	ServerClientCertPath string
 	ServerClientKeyPath  string
 }
 
-func Load() *Config {
+func NewConfig() *Config {
 	return &Config{
-		ServerPort: getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
-		EtcdCfg: EtcdCfg{
-			EtcdAddr:             getEnv("SHARED_LOCK_ETCD_ADDR", DefaultEtcdAddr),
+		Server: ServerCfg{
+			Port: getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
+			Timeout: ServerTimeout{
+				Read:     getEnv("SHARED_LOCK_SERVER_READ_TIMEOUT", DefaultServerReadTimeout),
+				Write:    getEnv("SHARED_LOCK_SERVER_WRITE_TIMEOUT", DefaultServerWriteTimeout),
+				Idle:     getEnv("SHARED_LOCK_SERVER_IDLE_TIMEOUT", DefaultServerIdleTimeout),
+				Shutdown: getEnv("SHARED_LOCK_SERVER_SHUTDOWN_TIMEOUT", DefaultServerShutdownTimeout),
+			},
+		},
+		Etcd: EtcdCfg{
+			EtcdAddrList:         getEnv("SHARED_LOCK_ETCD_ADDR_LIST", DefaultEtcdAddrList),
 			TLSEnabled:           getEnv("SHARED_LOCK_ETCD_TLS", DefaultEtcdTLSEnabled),
 			ServerCACertPath:     getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerCACertPath),
 			ServerClientCertPath: getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerClientCertPath),
