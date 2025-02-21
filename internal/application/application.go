@@ -24,6 +24,7 @@ func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux
 
 	router.HandleFunc("/lease", getLeaseHandler(configuration))
 	router.HandleFunc("/keepalive", keepaliveHandler(configuration))
+	router.HandleFunc("/health", healthHandler())
 
 	return router
 }
@@ -96,5 +97,11 @@ func keepaliveHandler(configuration *config.Config) http.HandlerFunc {
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)
 		}
+	}
+}
+
+func healthHandler() http.HandlerFunc {
+	return func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusOK)
 	}
 }
