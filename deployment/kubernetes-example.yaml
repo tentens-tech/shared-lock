@@ -52,7 +52,7 @@ spec:
     spec:
       containers:
       - name: shared-lock-api
-        image: vpapidokha/shared-lock:0.0.1
+        image: 1010s/shared-lock:main
         imagePullPolicy: Always
         command:
         - /usr/bin/shared-lock
