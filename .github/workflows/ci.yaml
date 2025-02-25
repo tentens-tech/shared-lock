@@ -25,3 +25,4 @@ jobs:
         with:
           push: true
           tags: 1010s/shared-lock:${{ github.ref_name }}
+          file: deployment/Dockerfile
