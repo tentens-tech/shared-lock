@@ -59,8 +59,8 @@ func NewConfig() *Config {
 			EtcdAddrList:         getEnv("SHARED_LOCK_ETCD_ADDR_LIST", DefaultEtcdAddrList),
 			TLSEnabled:           getEnv("SHARED_LOCK_ETCD_TLS", DefaultEtcdTLSEnabled),
 			ServerCACertPath:     getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerCACertPath),
-			ServerClientCertPath: getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerClientCertPath),
-			ServerClientKeyPath:  getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerClientKeyPath),
+			ServerClientCertPath: getEnv("SHARED_LOCK_CLIENT_CERT_PATH", DefaultEtcdServerClientCertPath),
+			ServerClientKeyPath:  getEnv("SHARED_LOCK_CLIENT_KEY_PATH", DefaultEtcdServerClientKeyPath),
 		},
 	}
 }

@@ -17,7 +17,6 @@ COPY . /app
 
 RUN apt update; apt install -y git
 RUN export VERSION=$(git describe --tags --always --dirty); CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOPROXY=https://proxy.golang.org go build -o app -ldflags="-s -w -X 'main.version=${VERSION}'" main.go && \
-    strip app && \
     /usr/local/bin/upx --best --lzma app
 
 FROM alpine:latest AS shared-lock
