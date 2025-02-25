@@ -2,8 +2,6 @@ name: ci
 
 on:
   push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -26,4 +24,4 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: tentens-tech/shared-lock:latest
+          tags: 1010s/shared-lock:${{ github.ref_name }}
