@@ -16,7 +16,7 @@ const (
 	DefaultLeaseDurationSeconds = 10
 )
 
-func CreateLease(ctx context.Context, cfg *config.Config, storageConnection storage.Connection, data []byte, leaseTTLString string, lease Lease) (string, int64, error) {
+func CreateLease(ctx context.Context, cfg *config.Config, storageConnection storage.Storage, data []byte, leaseTTLString string, lease Lease) (string, int64, error) {
 	var err error
 	var leaseTTL time.Duration
 	var leaseID int64
@@ -55,7 +55,7 @@ func CreateLease(ctx context.Context, cfg *config.Config, storageConnection stor
 	return leaseStatus, leaseID, nil
 }
 
-func ReviveLease(ctx context.Context, storageConnection storage.Connection, leaseID int64) error {
+func ReviveLease(ctx context.Context, storageConnection storage.Storage, leaseID int64) error {
 	err := storageConnection.KeepLeaseOnce(ctx, leaseID)
 	if err != nil {
 		log.Warnf("Failed to prolong lease: %v", err)
