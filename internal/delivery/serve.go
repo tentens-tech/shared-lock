@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -43,14 +44,12 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		}
 
 		log.Printf("Server is starting on %s\n", server.Addr)
-		go func() {
-			if err := server.ListenAndServe(); err != nil {
-				if err == http.ErrServerClosed {
-					// Normal interrupt operation, ignore
-				} else {
-					log.Fatalf("Server failed to start due to err: %v", err)
-				}
+		go func() error {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return err
 			}
+
+			return nil
 		}()
 
 		interrupt := <-runChan
@@ -63,7 +62,8 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 
 		log.Printf("Server is shutting down due to %+v\n", interrupt)
 		if err := server.Shutdown(ctxWithTimeout); err != nil {
-			log.Fatalf("Server was unable to gracefully shutdown due to err: %+v", err)
+			log.Printf("Server was unable to gracefully shutdown due to err: %+v", err)
+			return err
 		}
 
 		return nil
