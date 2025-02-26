@@ -63,9 +63,9 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 		}
 
 		switch leaseStatus {
-		case "accepted":
+		case storage.StatusAccepted:
 			w.WriteHeader(http.StatusAccepted)
-		case "created":
+		case storage.StatusCreated:
 			w.WriteHeader(http.StatusCreated)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)

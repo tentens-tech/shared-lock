@@ -9,6 +9,7 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/config"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -107,11 +108,11 @@ func (con *Connection) CreateLease(ctx context.Context, key string, leaseTTL int
 
 	if !TxnResp.Succeeded {
 		log.Warnf("Lease race")
-		return "accepted", 0, nil
+		return storage.StatusAccepted, 0, nil
 	}
 
 	log.Printf("%v key created with a new lease %v", key, leaseResp.ID)
-	return "created", int64(leaseResp.ID), nil
+	return storage.StatusCreated, int64(leaseResp.ID), nil
 }
 
 func (con *Connection) KeepLeaseOnce(ctx context.Context, leaseID int64) error {
