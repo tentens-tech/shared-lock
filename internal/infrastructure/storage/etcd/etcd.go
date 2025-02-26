@@ -19,11 +19,11 @@ const (
 )
 
 type Connection struct {
-	Cli *clientv3.Client
+	Client *clientv3.Client
 }
 
 func NewConnection(cfg *config.Config) *Connection {
-	etcdConnection := &Connection{Cli: func() *clientv3.Client {
+	etcdConnection := &Connection{Client: func() *clientv3.Client {
 		var (
 			err       error
 			tlsConfig *tls.Config
@@ -68,7 +68,7 @@ func (con *Connection) CheckLeasePresence(ctx context.Context, key string) (bool
 	var err error
 	getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
-	resp, err := con.Cli.Get(getCtx, key)
+	resp, err := con.Client.Get(getCtx, key)
 	cancel()
 	if err != nil {
 		return false, fmt.Errorf("failed to get key from etcd: %v", err)
@@ -92,13 +92,13 @@ func (con *Connection) CreateLease(ctx context.Context, key string, leaseTTL int
 		value = string(data)
 	}
 
-	leaseResp, err = con.Cli.Grant(ctx, leaseTTL)
+	leaseResp, err = con.Client.Grant(ctx, leaseTTL)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to create lease: %v", err)
 	}
 
 	var TxnResp *clientv3.TxnResponse
-	TxnResp, err = con.Cli.Txn(ctx).
+	TxnResp, err = con.Client.Txn(ctx).
 		If(clientv3.Compare(clientv3.CreateRevision(key), "=", 0)).
 		Then(clientv3.OpPut(key, value, clientv3.WithLease(leaseResp.ID))).
 		Commit()
@@ -119,7 +119,7 @@ func (con *Connection) KeepLeaseOnce(ctx context.Context, leaseID int64) error {
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	_, err := con.Cli.KeepAliveOnce(ctxWithCancel, clientv3.LeaseID(leaseID))
+	_, err := con.Client.KeepAliveOnce(ctxWithCancel, clientv3.LeaseID(leaseID))
 	if err != nil {
 		return err
 	}
