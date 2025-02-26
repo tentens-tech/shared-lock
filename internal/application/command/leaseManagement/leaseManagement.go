@@ -16,18 +16,11 @@ const (
 	DefaultLeaseDurationSeconds = 10
 )
 
-func CreateLease(ctx context.Context, cfg *config.Config, storageConnection storage.Storage, data []byte, leaseTTLString string, lease Lease) (string, int64, error) {
+func CreateLease(ctx context.Context, cfg *config.Config, storageConnection storage.Storage, data []byte, leaseTTL time.Duration, lease Lease) (string, int64, error) {
 	var err error
-	var leaseTTL time.Duration
 	var leaseID int64
 	var leaseStatus string
 	var isLeasePresent bool
-
-	leaseTTL, err = time.ParseDuration(leaseTTLString)
-	if err != nil {
-		log.Warnf("Use defaultLeaseDurationSeconds for %v", lease.Key)
-		leaseTTL = DefaultLeaseDurationSeconds
-	}
 
 	key := DefaultPrefix + lease.Key
 

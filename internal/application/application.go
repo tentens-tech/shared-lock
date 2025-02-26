@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	DefaultLeaseTTLHeader = "x-lease-ttl"
+	defaultLeaseTTLHeader = "x-lease-ttl"
 )
 
 func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux {
@@ -54,7 +55,11 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
 		}
 
-		leaseTTL := r.Header.Get(DefaultLeaseTTLHeader)
+		leaseTTL, err := time.ParseDuration(r.Header.Get(defaultLeaseTTLHeader))
+		if err != nil {
+			log.Warnf("Can't parse value of %v header. Using defaultLeaseDurationSeconds for %v", defaultLeaseTTLHeader, lease.Key)
+			leaseTTL = leasemanagement.DefaultLeaseDurationSeconds
+		}
 
 		leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, configuration, storageConnection, body, leaseTTL, lease)
 		if err != nil {
