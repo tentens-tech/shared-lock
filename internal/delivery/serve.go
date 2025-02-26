@@ -27,15 +27,13 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx)
-	// Set up a channel to listen to for interrupt signals
+
 	var runChan = make(chan os.Signal, 1)
-	// Handle ctrl+c/ctrl+x interrupt
 	signal.Notify(runChan, os.Interrupt)
 
 	configuration := config.NewConfig()
 
 	errGroup.Go(func() error {
-		// Define server options
 		server := &http.Server{
 			Addr:         ":" + configuration.Server.Port,
 			Handler:      application.NewRouter(errGroupCtx, configuration),
@@ -44,10 +42,7 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 			IdleTimeout:  configuration.Server.Timeout.Idle * time.Second,
 		}
 
-		// Alert the user that the server is starting
 		log.Printf("Server is starting on %s\n", server.Addr)
-
-		// Run the server on a new goroutine
 		go func() {
 			if err := server.ListenAndServe(); err != nil {
 				if err == http.ErrServerClosed {
@@ -58,20 +53,14 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 			}
 		}()
 
-		// Block on this channel listeninf for those previously defined syscalls assign
-		// to variable so we can let the user know why the server is shutting down
 		interrupt := <-runChan
 
-		// Set up a context to allow for graceful server shutdowns in the event
-		// of an OS interrupt (defers the cancel just in case)
 		ctxWithTimeout, cancel := context.WithTimeout(
 			errGroupCtx,
 			configuration.Server.Timeout.Shutdown,
 		)
 		defer cancel()
 
-		// If we get one of the pre-prescribed syscalls, gracefully terminate the server
-		// while alerting the user
 		log.Printf("Server is shutting down due to %+v\n", interrupt)
 		if err := server.Shutdown(ctxWithTimeout); err != nil {
 			log.Fatalf("Server was unable to gracefully shutdown due to err: %+v", err)
