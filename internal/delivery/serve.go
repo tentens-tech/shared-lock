@@ -23,10 +23,10 @@ func NewServe() *cobra.Command {
 	}
 }
 
-func sharedLockProcess(cmd *cobra.Command, args []string) error {
+func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
-	eg := errgroup.Group{}
+	errGroup, errGroupCtx := errgroup.WithContext(ctx)
 	// Set up a channel to listen to for interrupt signals
 	var runChan = make(chan os.Signal, 1)
 	// Handle ctrl+c/ctrl+x interrupt
@@ -34,11 +34,11 @@ func sharedLockProcess(cmd *cobra.Command, args []string) error {
 
 	configuration := config.NewConfig()
 
-	eg.Go(func() error {
+	errGroup.Go(func() error {
 		// Define server options
 		server := &http.Server{
 			Addr:         ":" + configuration.Server.Port,
-			Handler:      application.NewRouter(ctx, configuration),
+			Handler:      application.NewRouter(errGroupCtx, configuration),
 			ReadTimeout:  configuration.Server.Timeout.Read * time.Second,
 			WriteTimeout: configuration.Server.Timeout.Write * time.Second,
 			IdleTimeout:  configuration.Server.Timeout.Idle * time.Second,
@@ -65,7 +65,7 @@ func sharedLockProcess(cmd *cobra.Command, args []string) error {
 		// Set up a context to allow for graceful server shutdowns in the event
 		// of an OS interrupt (defers the cancel just in case)
 		ctxWithTimeout, cancel := context.WithTimeout(
-			ctx,
+			errGroupCtx,
 			configuration.Server.Timeout.Shutdown,
 		)
 		defer cancel()
@@ -80,5 +80,5 @@ func sharedLockProcess(cmd *cobra.Command, args []string) error {
 		return nil
 	})
 
-	return eg.Wait()
+	return errGroup.Wait()
 }
