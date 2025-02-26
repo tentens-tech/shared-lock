@@ -22,8 +22,8 @@ const (
 func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux {
 	router := http.NewServeMux()
 
-	router.HandleFunc("/lease", getLeaseHandler(configuration))
-	router.HandleFunc("/keepalive", keepaliveHandler(configuration))
+	router.HandleFunc("/lease", getLeaseHandler(ctx, configuration))
+	router.HandleFunc("/keepalive", keepaliveHandler(ctx, configuration))
 	router.HandleFunc("/health", healthHandler())
 
 	return router
@@ -33,7 +33,7 @@ func newStorageConnection(cfg *config.Config) storage.Connection {
 	return etcd.NewConnection(cfg)
 }
 
-func getLeaseHandler(configuration *config.Config) http.HandlerFunc {
+func getLeaseHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
 	storageConnection := newStorageConnection(configuration)
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func getLeaseHandler(configuration *config.Config) http.HandlerFunc {
 
 		leaseTTLString := r.Header.Get(DefaultLeaseTTLHeader)
 
-		leaseStatus, leaseID, err = leaseManagement.CreateLease(configuration, storageConnection, body, leaseTTLString, lease)
+		leaseStatus, leaseID, err = leaseManagement.CreateLease(ctx, configuration, storageConnection, body, leaseTTLString, lease)
 		if err != nil {
 			log.Errorf("%v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -78,7 +78,7 @@ func getLeaseHandler(configuration *config.Config) http.HandlerFunc {
 	}
 }
 
-func keepaliveHandler(configuration *config.Config) http.HandlerFunc {
+func keepaliveHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
 	storageConnection := newStorageConnection(configuration)
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +99,7 @@ func keepaliveHandler(configuration *config.Config) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		err = leaseManagement.ReviveLease(body, storageConnection, leaseID)
+		err = leaseManagement.ReviveLease(ctx, storageConnection, leaseID)
 		if err != nil {
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)

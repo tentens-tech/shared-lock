@@ -1,6 +1,8 @@
 package storage
 
+import "context"
+
 type Connection interface {
-	GetLease(key string, data []byte, leaseTTL int64) (string, int64, error)
-	KeepLeaseOnce(leaseID int64) error
+	GetLease(ctx context.Context, key string, data []byte, leaseTTL int64) (string, int64, error)
+	KeepLeaseOnce(ctx context.Context, leaseID int64) error
 }

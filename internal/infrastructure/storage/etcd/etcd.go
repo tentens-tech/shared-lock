@@ -63,7 +63,7 @@ func NewConnection(cfg *config.Config) *Connection {
 	return etcdConnection
 }
 
-func (con *Connection) GetLease(key string, data []byte, leaseTTL int64) (string, int64, error) {
+func (con *Connection) GetLease(ctx context.Context, key string, data []byte, leaseTTL int64) (string, int64, error) {
 	var err error
 	var value string
 
@@ -74,7 +74,6 @@ func (con *Connection) GetLease(key string, data []byte, leaseTTL int64) (string
 	}
 
 	// Try to get the key
-	ctx := context.Background()
 	getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	resp, err := con.Cli.Get(getCtx, key)
 	cancel()
@@ -113,7 +112,7 @@ func (con *Connection) GetLease(key string, data []byte, leaseTTL int64) (string
 	log.Printf("%v key created with a new lease %v", key, leaseResp.ID)
 
 	// Renew a lease
-	err = con.KeepLeaseOnce(int64(leaseResp.ID))
+	err = con.KeepLeaseOnce(ctx, int64(leaseResp.ID))
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to prolong lease with leaseID: %v, %v", leaseResp.ID, err)
 	}
@@ -121,14 +120,15 @@ func (con *Connection) GetLease(key string, data []byte, leaseTTL int64) (string
 	return "created", int64(leaseResp.ID), nil
 }
 
-func (con *Connection) KeepLeaseOnce(leaseID int64) error {
-
-	ctx, cancel := context.WithCancel(context.Background())
+func (con *Connection) KeepLeaseOnce(ctx context.Context, leaseID int64) error {
+	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
-	_, err := con.Cli.KeepAliveOnce(ctx, clientv3.LeaseID(leaseID))
+
+	_, err := con.Cli.KeepAliveOnce(ctxWithCancel, clientv3.LeaseID(leaseID))
 	if err != nil {
 		return err
 	}
+
 	log.Printf("KeepAlive lease: %v", leaseID)
 	return nil
 }
