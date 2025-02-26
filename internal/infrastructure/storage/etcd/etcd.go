@@ -63,7 +63,25 @@ func NewConnection(cfg *config.Config) *Connection {
 	return etcdConnection
 }
 
-func (con *Connection) GetLease(ctx context.Context, key string, data []byte, leaseTTL int64) (string, int64, error) {
+func (con *Connection) CheckLeasePresence(ctx context.Context, key string) (bool, error) {
+	var err error
+	getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+
+	resp, err := con.Cli.Get(getCtx, key)
+	cancel()
+	if err != nil {
+		return false, fmt.Errorf("failed to get key from etcd: %v", err)
+	}
+	if len(resp.Kvs) != 0 {
+		log.Debugf("Lock %v, already exists", key)
+		return true, nil
+	}
+
+	return false, fmt.Errorf("lock %v does not exist", key)
+}
+
+func (con *Connection) CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {
+	var leaseResp *clientv3.LeaseGrantResponse
 	var err error
 	var value string
 
@@ -73,23 +91,6 @@ func (con *Connection) GetLease(ctx context.Context, key string, data []byte, le
 		value = string(data)
 	}
 
-	// Try to get the key
-	getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	resp, err := con.Cli.Get(getCtx, key)
-	cancel()
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to get key from etcd: %v", err)
-	}
-	if len(resp.Kvs) != 0 {
-		log.Debugf("Lock %v, already exists", key)
-		// Todo: wait program
-		return "accepted", 0, nil
-	}
-
-	// If the key does not exist, create it with a new lease
-	// Create a new lease
-
-	var leaseResp *clientv3.LeaseGrantResponse
 	leaseResp, err = con.Cli.Grant(ctx, leaseTTL)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to create lease: %v", err)
@@ -110,13 +111,6 @@ func (con *Connection) GetLease(ctx context.Context, key string, data []byte, le
 	}
 
 	log.Printf("%v key created with a new lease %v", key, leaseResp.ID)
-
-	// Renew a lease
-	err = con.KeepLeaseOnce(ctx, int64(leaseResp.ID))
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to prolong lease with leaseID: %v, %v", leaseResp.ID, err)
-	}
-
 	return "created", int64(leaseResp.ID), nil
 }
 

@@ -2,6 +2,7 @@ package leaseManagement
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -20,6 +21,7 @@ func CreateLease(ctx context.Context, cfg *config.Config, storageConnection stor
 	var leaseTTL time.Duration
 	var leaseID int64
 	var leaseStatus string
+	var isLeasePresent bool
 
 	leaseTTL, err = time.ParseDuration(leaseTTLString)
 	if err != nil {
@@ -29,11 +31,25 @@ func CreateLease(ctx context.Context, cfg *config.Config, storageConnection stor
 
 	key := DefaultPrefix + lease.Key
 
-	log.Debugf("Get lease for key: %v, with ttl: %v", key, leaseTTL)
-	leaseStatus, leaseID, err = storageConnection.GetLease(ctx, key, data, int64(leaseTTL.Seconds()))
+	log.Debugf("Checking lease presence for the key: %v", key)
+	isLeasePresent, err = storageConnection.CheckLeasePresence(ctx, key)
 	if err != nil {
-		log.Errorf("%v", err)
+		return "", 0, fmt.Errorf("failed to check lease presence: %v", err)
+	}
+	if isLeasePresent {
+		return "accepted", 0, nil
+	}
+
+	log.Debugf("Creating lease for the key: %v", key)
+	leaseStatus, leaseID, err = storageConnection.CreateLease(ctx, key, int64(leaseTTL.Seconds()), data)
+	if err != nil {
 		return "", 0, err
+	}
+
+	log.Debugf("Prolong lease for the key: %v, with ttl: %v", key, leaseTTL)
+	err = storageConnection.KeepLeaseOnce(ctx, leaseID)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to prolong lease with leaseID: %v, %v", leaseID, err)
 	}
 
 	return leaseStatus, leaseID, nil
