@@ -3,7 +3,7 @@
 This repository contains a Go-based implementation of a shared lock service using etcd. The service provides endpoints for creating and maintaining leases, ensuring distributed coordination and synchronization.
 
 ## How to build this project
-To build it as is:
+To build it:
 ``` bash
 go build -o shared-lock main.go
 ```
