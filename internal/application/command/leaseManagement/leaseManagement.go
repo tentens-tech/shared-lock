@@ -18,7 +18,7 @@ func CreateLease(cfg *config.Config, storageConnection storage.Connection, data 
 	var err error
 	var leaseTTL time.Duration
 	var leaseID int64
-	var getLeaseStatus string
+	var leaseStatus string
 
 	leaseTTL, err = time.ParseDuration(leaseTTLString)
 	if err != nil {
@@ -29,13 +29,13 @@ func CreateLease(cfg *config.Config, storageConnection storage.Connection, data 
 	key := DefaultPrefix + lease.Key
 
 	log.Debugf("Get lease for key: %v, with ttl: %v", key, leaseTTL)
-	getLeaseStatus, leaseID, err = storageConnection.GetLease(key, data, int64(leaseTTL.Seconds()))
+	leaseStatus, leaseID, err = storageConnection.GetLease(key, data, int64(leaseTTL.Seconds()))
 	if err != nil {
 		log.Errorf("%v", err)
 		return "", 0, err
 	}
 
-	return getLeaseStatus, leaseID, nil
+	return leaseStatus, leaseID, nil
 }
 
 func ReviveLease(data []byte, storageConnection storage.Connection, leaseID int64) error {

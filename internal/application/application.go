@@ -40,28 +40,35 @@ func getLeaseHandler(configuration *config.Config) http.HandlerFunc {
 		var err error
 		var lease leaseManagement.Lease
 		var leaseID int64
-		var getLeaseStatus string
+		var leaseStatus string
 
-		body, _ := io.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Errorf("Failed to read request body, %v", err)
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		}
+
 		err = json.Unmarshal(body, &lease)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("Failed to unmarshal request body, %v", err)
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
 		}
 
 		leaseTTLString := r.Header.Get(DefaultLeaseTTLHeader)
 
-		getLeaseStatus, leaseID, err = leaseManagement.CreateLease(configuration, storageConnection, body, leaseTTLString, lease)
+		leaseStatus, leaseID, err = leaseManagement.CreateLease(configuration, storageConnection, body, leaseTTLString, lease)
 		if err != nil {
 			log.Errorf("%v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		switch getLeaseStatus {
+		switch leaseStatus {
 		case "accepted":
 			w.WriteHeader(http.StatusAccepted)
 		case "created":
 			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 		_, err = w.Write([]byte(fmt.Sprintf("%v", leaseID)))
@@ -82,7 +89,7 @@ func keepaliveHandler(configuration *config.Config) http.HandlerFunc {
 		body, _ := io.ReadAll(r.Body)
 		err = json.Unmarshal(body, &lease)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("Failed to unmarshal request body, %v", err)
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
 		}
 
