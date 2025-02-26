@@ -1,8 +1,11 @@
 package config
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -37,7 +40,7 @@ type ServerTimeout struct {
 }
 
 type EtcdCfg struct {
-	EtcdAddrList         string
+	EtcdAddrList         []string
 	TLSEnabled           bool
 	ServerCACertPath     string
 	ServerClientCertPath string
@@ -45,6 +48,11 @@ type EtcdCfg struct {
 }
 
 func NewConfig() *Config {
+	etcdEndpointsList, err := checkEtcdEndpointsList(getEnv("SHARED_LOCK_ETCD_ADDR_LIST", DefaultEtcdAddrList))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &Config{
 		Server: ServerCfg{
 			Port: getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
@@ -56,7 +64,7 @@ func NewConfig() *Config {
 			},
 		},
 		Etcd: EtcdCfg{
-			EtcdAddrList:         getEnv("SHARED_LOCK_ETCD_ADDR_LIST", DefaultEtcdAddrList),
+			EtcdAddrList:         etcdEndpointsList,
 			TLSEnabled:           getEnv("SHARED_LOCK_ETCD_TLS", DefaultEtcdTLSEnabled),
 			ServerCACertPath:     getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerCACertPath),
 			ServerClientCertPath: getEnv("SHARED_LOCK_CLIENT_CERT_PATH", DefaultEtcdServerClientCertPath),
@@ -82,4 +90,22 @@ func getEnv[T any](key string, defaultVal T) T {
 	}
 
 	return defaultVal
+}
+
+func checkEtcdEndpointsList(etcdEndpointsList string) ([]string, error) {
+	etcdEndpoints := strings.Split(etcdEndpointsList, ",")
+	if len(etcdEndpoints) == 0 {
+		return nil, fmt.Errorf("no etcd endpoints provided")
+	}
+	if strings.ContainsAny(etcdEndpointsList, ";|/") {
+		return nil, fmt.Errorf("invalid separator in etcd endpoints. Use comma (,) to separate endpoints")
+	}
+
+	for _, endpoint := range etcdEndpoints {
+		if endpoint = strings.TrimSpace(endpoint); endpoint == "" {
+			return nil, fmt.Errorf("empty etcd endpoint provided")
+		}
+	}
+
+	return etcdEndpoints, nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/tentens-tech/shared-lock/internal/config"
@@ -50,7 +49,7 @@ func NewConnection(cfg *config.Config) *Connection {
 		}()
 
 		cli, err := clientv3.New(clientv3.Config{
-			Endpoints:   strings.Split(cfg.Etcd.EtcdAddrList, ","),
+			Endpoints:   cfg.Etcd.EtcdAddrList,
 			DialTimeout: 5 * time.Second,
 			TLS:         tlsConfig,
 		})
