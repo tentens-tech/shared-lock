@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/tentens-tech/shared-lock/internal/application/command/leaseManagement"
+	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
@@ -38,7 +38,7 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
-		var lease leaseManagement.Lease
+		var lease leasemanagement.Lease
 		var leaseID int64
 		var leaseStatus string
 
@@ -54,9 +54,9 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
 		}
 
-		leaseTTLString := r.Header.Get(DefaultLeaseTTLHeader)
+		leaseTTL := r.Header.Get(DefaultLeaseTTLHeader)
 
-		leaseStatus, leaseID, err = leaseManagement.CreateLease(ctx, configuration, storageConnection, body, leaseTTLString, lease)
+		leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, configuration, storageConnection, body, leaseTTL, lease)
 		if err != nil {
 			log.Errorf("%v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -83,7 +83,7 @@ func keepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
-		var lease leaseManagement.Lease
+		var lease leasemanagement.Lease
 		var leaseID int64
 
 		body, _ := io.ReadAll(r.Body)
@@ -99,7 +99,7 @@ func keepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		err = leaseManagement.ReviveLease(ctx, storageConnection, leaseID)
+		err = leasemanagement.ReviveLease(ctx, storageConnection, leaseID)
 		if err != nil {
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)

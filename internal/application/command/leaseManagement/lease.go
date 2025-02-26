@@ -1,4 +1,4 @@
-package leaseManagement
+package leasemanagement
 
 import (
 	"time"
