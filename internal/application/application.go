@@ -29,7 +29,7 @@ func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux
 	return router
 }
 
-func newStorageConnection(cfg *config.Config) storage.Connection {
+func newStorageConnection(cfg *config.Config) storage.Storage {
 	return etcd.NewConnection(cfg)
 }
 
