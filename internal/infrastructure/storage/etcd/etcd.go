@@ -78,7 +78,7 @@ func (con *Connection) CheckLeasePresence(ctx context.Context, key string) (bool
 		return true, nil
 	}
 
-	return false, fmt.Errorf("lock %v does not exist", key)
+	return false, nil
 }
 
 func (con *Connection) CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {
