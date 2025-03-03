@@ -8,6 +8,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            1010s/shared-lock
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=ref,event=branch
+            type=sha
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -20,21 +31,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract branch name
-        run: |
-          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-          if [ "${GITHUB_REF#refs/heads/}" = "master" ]; then
-            echo "TAG_LIST=latest,${{ env.BRANCH_NAME }},${{ github.run_id }}" >> $GITHUB_ENV
-          else
-            echo "TAG_LIST=${{ env.BRANCH_NAME }},${{ github.run_id }}" >> $GITHUB_ENV
-          fi
-        shell: bash
-
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          image: "1010s/shared-lock"
           registry: docker.io
           push: true
-          tags: ${{ env.TAG_LIST }}
-          file: deployment/Dockerfile
+          tags: ${{ steps.meta.outputs.tags }}
