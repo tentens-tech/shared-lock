@@ -126,6 +126,6 @@ func (etcd *Etcd) KeepLeaseOnce(ctx context.Context, leaseID int64) error {
 		return err
 	}
 
-	log.Printf("KeepAlive lease: %v", leaseID)
+	log.Debugf("KeepAlive lease: %v", leaseID)
 	return nil
 }
