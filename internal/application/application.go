@@ -30,12 +30,21 @@ func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux
 	return router
 }
 
-func newStorageConnection(cfg *config.Config) storage.Storage {
-	return etcd.NewConnection(cfg)
+func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
+	storageConnection, err := etcd.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
+	}
+
+	return storageConnection, nil
 }
 
 func getLeaseHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
-	storageConnection := newStorageConnection(configuration)
+	storageConnection, err := newStorageConnection(configuration)
+	if err != nil {
+		log.Errorf("Failed to connect to storage adapater, %v", err)
+		return nil
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
@@ -85,7 +94,11 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 }
 
 func keepaliveHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
-	storageConnection := newStorageConnection(configuration)
+	storageConnection, err := newStorageConnection(configuration)
+	if err != nil {
+		log.Errorf("Failed to connect to storage adapater, %v", err)
+		return nil
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
