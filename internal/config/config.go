@@ -25,6 +25,7 @@ const (
 type Config struct {
 	Server ServerCfg
 	Etcd   EtcdCfg
+	Debug  bool
 }
 
 type ServerCfg struct {
@@ -70,6 +71,7 @@ func NewConfig() *Config {
 			ServerClientCertPath: getEnv("SHARED_LOCK_CLIENT_CERT_PATH", DefaultEtcdServerClientCertPath),
 			ServerClientKeyPath:  getEnv("SHARED_LOCK_CLIENT_KEY_PATH", DefaultEtcdServerClientKeyPath),
 		},
+		Debug: getEnv("SHARED_LOCK_DEBUG", false),
 	}
 }
 

@@ -3,12 +3,12 @@ package delivery
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/tentens-tech/shared-lock/internal/application"
 	"github.com/tentens-tech/shared-lock/internal/config"
 	"golang.org/x/sync/errgroup"
@@ -33,6 +33,9 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 	signal.Notify(runChan, os.Interrupt)
 
 	configuration := config.NewConfig()
+	if configuration.Debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	errGroup.Go(func() error {
 		server := &http.Server{
