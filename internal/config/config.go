@@ -97,7 +97,7 @@ func checkEtcdEndpointsList(etcdEndpointsList string) ([]string, error) {
 	if len(etcdEndpoints) == 0 {
 		return nil, fmt.Errorf("no etcd endpoints provided")
 	}
-	if strings.ContainsAny(etcdEndpointsList, ";|/") {
+	if strings.ContainsAny(etcdEndpointsList, ";|") {
 		return nil, fmt.Errorf("invalid separator in etcd endpoints. Use comma (,) to separate endpoints")
 	}
 
