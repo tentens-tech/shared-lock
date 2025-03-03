@@ -71,7 +71,7 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 			leaseTTL = leasemanagement.DefaultLeaseDurationSeconds
 		}
 
-		leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, configuration, storageConnection, body, leaseTTL, lease)
+		leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, storageConnection, body, leaseTTL, lease)
 		if err != nil {
 			log.Errorf("%v", err)
 			w.WriteHeader(http.StatusInternalServerError)

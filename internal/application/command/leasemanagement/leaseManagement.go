@@ -7,7 +7,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/tentens-tech/shared-lock/internal/config"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 )
 
@@ -16,7 +15,7 @@ const (
 	DefaultLeaseDurationSeconds = 10
 )
 
-func CreateLease(ctx context.Context, cfg *config.Config, storageConnection storage.Storage, data []byte, leaseTTL time.Duration, lease Lease) (string, int64, error) {
+func CreateLease(ctx context.Context, storageConnection storage.Storage, data []byte, leaseTTL time.Duration, lease Lease) (string, int64, error) {
 	var err error
 	var leaseID int64
 	var leaseStatus string
