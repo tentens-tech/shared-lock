@@ -15,7 +15,7 @@ const (
 	DefaultServerWriteTimeout       = 10 * time.Second
 	DefaultServerIdleTimeout        = 120 * time.Second
 	DefaultServerShutdownTimeout    = 10 * time.Second
-	DefaultEtcdAddrList             = "localhost:2379"
+	DefaultEtcdAddrList             = "http://localhost:2379"
 	DefaultEtcdTLSEnabled           = false
 	DefaultEtcdServerCACertPath     = "/etc/etcd/ca.crt"
 	DefaultEtcdServerClientCertPath = "/etc/etcd/client.crt"
