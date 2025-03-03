@@ -21,23 +21,20 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract branch name
+        run: |
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          if [ "${GITHUB_REF#refs/heads/}" = "master" ]; then
+            echo "TAG_LIST=latest,${{ env.BRANCH_NAME }},${{ github.run_id }}" >> $GITHUB_ENV
+          else
+            echo "TAG_LIST=${{ env.BRANCH_NAME }},${{ github.run_id }}" >> $GITHUB_ENV
+          fi
         shell: bash
-        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
-      - name: Build and push for master
-        if: ${{ env.BRANCH_NAME == 'master' }}
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          image: 1010s/shared-lock
+          image: "1010s/shared-lock"
+          registry: docker.io
           push: true
-          tags: latest, ${{ env.BRANCH_NAME }}, ${{ github.run_id }}
-          file: deployment/Dockerfile
-
-      - name: Build and push for other branches
-        if: ${{ env.BRANCH_NAME != 'master' }}
-        uses: docker/build-push-action@v6
-        with:
-          image: 1010s/shared-lock
-          push: true
-          tags: ${{ env.BRANCH_NAME }}, ${{ github.run_id }}
+          tags: ${{ env.TAG_LIST }}
           file: deployment/Dockerfile
