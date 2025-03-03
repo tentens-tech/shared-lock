@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch shared-lock api",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "env": {
+                "SHARED_LOCK_DEBUG": "true",
+            },
+            "args": ["serve"]
+        }
+    ]
+}

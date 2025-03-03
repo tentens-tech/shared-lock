@@ -1,15 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
-	"os"
-	"tentens-tech/shared-lock/sharedLock"
+
+	"github.com/tentens-tech/shared-lock/internal/delivery"
 )
 
 func main() {
-	err := sharedLock.StartSharedLock()
-	if err != nil {
-		log.Fatalln(err)
+	if err := delivery.Execute(context.Background()); err != nil {
+		log.Fatal(err)
 	}
-	os.Exit(0)
 }
