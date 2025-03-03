@@ -92,6 +92,7 @@ func (con *Connection) CreateLease(ctx context.Context, key string, leaseTTL int
 		value = string(data)
 	}
 
+	log.Debugf("Creating lease for the key: %v", key)
 	leaseResp, err = con.Client.Grant(ctx, leaseTTL)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to create lease: %v", err)

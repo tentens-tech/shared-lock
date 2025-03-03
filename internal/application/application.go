@@ -49,6 +49,7 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 			http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		}
 
+		log.Debugf("Request body: %v", string(body))
 		err = json.Unmarshal(body, &lease)
 		if err != nil {
 			log.Errorf("Failed to unmarshal request body, %v", err)
@@ -88,22 +89,22 @@ func keepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
-		var lease leasemanagement.Lease
 		var leaseID int64
 
-		body, _ := io.ReadAll(r.Body)
-		err = json.Unmarshal(body, &lease)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Errorf("Failed to unmarshal request body, %v", err)
-			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
+			log.Errorf("Failed to read request body, %v", err)
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		}
 
+		log.Debugf("Request body: %v", string(body))
 		leaseID, err = strconv.ParseInt(string(body), 10, 64)
 		if err != nil {
 			log.Errorf("Failed to parse lease id from string, leaseIDString: %v, %v", string(body), err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
+		log.Debugf("Trying to revive lease: %v", leaseID)
 		err = leasemanagement.ReviveLease(ctx, storageConnection, leaseID)
 		if err != nil {
 			log.Warnf("Failed to prolong lease: %v", err)

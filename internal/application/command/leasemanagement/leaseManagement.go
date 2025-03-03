@@ -51,7 +51,6 @@ func CreateLease(ctx context.Context, cfg *config.Config, storageConnection stor
 func ReviveLease(ctx context.Context, storageConnection storage.Storage, leaseID int64) error {
 	err := storageConnection.KeepLeaseOnce(ctx, leaseID)
 	if err != nil {
-		log.Warnf("Failed to prolong lease: %v", err)
 		return err
 	}
 
