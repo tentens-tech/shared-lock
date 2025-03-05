@@ -24,12 +24,17 @@ jobs:
       - name: Extract metadata for Docker
         id: meta
         run: |
+          IMAGE_NAME="1010s/shared-lock"
           BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's|refs/heads/||; s|refs/tags/||')
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          TAGS="${{ secrets.DOCKERHUB_USERNAME }}/my-app:$BRANCH_NAME,${{ secrets.DOCKERHUB_USERNAME }}/my-app:$SHORT_SHA"
+
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAGS="$TAGS,${{ secrets.DOCKERHUB_USERNAME }}/my-app:$BRANCH_NAME"
+            TAG_NAME=$(echo "${{ github.ref }}" | sed 's|refs/tags/||')
+            TAGS="$IMAGE_NAME:$TAG_NAME,$IMAGE_NAME:$SHORT_SHA"
+          else
+            TAGS="$IMAGE_NAME:$BRANCH_NAME,$IMAGE_NAME:$SHORT_SHA"
           fi
+
           echo "TAGS=$TAGS" >> $GITHUB_ENV
 
       - name: Build and push Docker image
