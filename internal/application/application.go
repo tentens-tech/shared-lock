@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
@@ -26,6 +27,7 @@ func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux
 	router.HandleFunc("/lease", getLeaseHandler(ctx, configuration))
 	router.HandleFunc("/keepalive", keepaliveHandler(ctx, configuration))
 	router.HandleFunc("/health", healthHandler())
+	router.Handle("/metrics", promhttp.Handler())
 
 	return router
 }
