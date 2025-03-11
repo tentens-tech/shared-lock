@@ -33,6 +33,7 @@ Possible configuration via env params:
 | SHARED_LOCK_CA_CERT_PATH              | /etc/etcd/ca.crt                  | Path to the CA certificate for etcd              |
 | SHARED_LOCK_CLIENT_CERT_PATH          | /etc/etcd/client.crt              | Path to the client certificate for etcd          |
 | SHARED_LOCK_CLIENT_KEY_PATH           | /etc/etcd/client.key              | Path to the client key for etcd                  |
+| SHARED_LOCK_DEBUG                     | false                             | Toggle for debug mode                            |
 
 ## How to deploy this project
 For this tool to work, you'll need live etcd installation.
@@ -40,6 +41,10 @@ For this tool to work, you'll need live etcd installation.
 As long as etcd mostly used as a part of Kubernetes cluster, we provide examplar installation manifest for the shared lock in `deployment/kubernetes-example.yaml`.
 
 ## How to use shared-lock server
+
+### Example
+
+Exampler app that demonstrates shared-lock usage in case of need to guarantee that some app will run only in one instance can be found at the `example` dir.
 
 ### Endpoints
 
@@ -58,7 +63,7 @@ As long as etcd mostly used as a part of Kubernetes cluster, we provide examplar
      ```sh
      curl -X POST http://localhost:8080/lease \
           -H "Content-Type: application/json" \
-          -H "x-lease-ttl: 60" \
+          -H "x-lease-ttl: 60s" \
           -d '{"key": "value"}'
      ```
 
@@ -75,7 +80,7 @@ As long as etcd mostly used as a part of Kubernetes cluster, we provide examplar
      ```sh
      curl -X POST http://localhost:8080/keepalive \
           -H "Content-Type: application/json" \
-          -d '{"lease_id": 12345}'
+          -d "12345"
      ```
 
 3. **Health Check**
@@ -101,5 +106,5 @@ As long as etcd mostly used as a part of Kubernetes cluster, we provide examplar
    ```sh
    curl -X POST http://localhost:8080/lease \
         -H "Content-Type: application/json" \
-        -H "x-lease-ttl: 60" \
+        -H "x-lease-ttl: 60s" \
         -d '{"key": "value"}'
