@@ -13,7 +13,7 @@ const (
 	baseURL           = "http://localhost:8080"
 	leaseEndpoint     = "/lease"
 	keepaliveEndpoint = "/keepalive"
-	leaseTTL          = "2s"            // Base time to live for a lease
+	leaseTTL          = "3s"            // Base time to live for a lease
 	retryInterval     = 2 * time.Second // Time to wait before retrying to obtain a lease
 	keepaliveInterval = 2 * time.Second // Time interval to send keepalive requests
 )
@@ -114,7 +114,7 @@ func sendKeepalive(leaseID string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %v, body: %v", resp.Status, resp.Body)
 	}
 
