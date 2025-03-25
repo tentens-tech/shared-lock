@@ -66,7 +66,11 @@ func obtainLease(lease Lease) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode == http.StatusAccepted {
+		return "", fmt.Errorf("lease already exists")
+	}
+
+	if resp.StatusCode != http.StatusCreated {
 		return "", fmt.Errorf("unexpected response status: %v, body: %v", resp.Status, resp.Body)
 	}
 
