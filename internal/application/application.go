@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
 )
@@ -20,10 +21,15 @@ const (
 	defaultLeaseTTLHeader = "x-lease-ttl"
 )
 
-func NewRouter(ctx context.Context, configuration *config.Config) *http.ServeMux {
+type leaseCacheRecord struct {
+	Status string
+	ID     int64
+}
+
+func NewRouter(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) *http.ServeMux {
 	router := http.NewServeMux()
 
-	router.HandleFunc("/lease", getLeaseHandler(ctx, configuration))
+	router.HandleFunc("/lease", getLeaseHandler(ctx, configuration, leaseCache))
 	router.HandleFunc("/keepalive", keepaliveHandler(ctx, configuration))
 	router.HandleFunc("/health", healthHandler())
 
@@ -39,7 +45,7 @@ func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
 	return storageConnection, nil
 }
 
-func getLeaseHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
+func getLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
 	storageConnection, err := newStorageConnection(configuration)
 	if err != nil {
 		log.Errorf("Failed to connect to storage adapater, %v", err)
@@ -65,16 +71,31 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config) http.Han
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
 		}
 
-		leaseTTL, err := time.ParseDuration(r.Header.Get(defaultLeaseTTLHeader))
-		if err != nil {
-			log.Warnf("Can't parse value of %v header. Using defaultLeaseDurationSeconds for %v", defaultLeaseTTLHeader, lease.Key)
-			leaseTTL = leasemanagement.DefaultLeaseDurationSeconds
+		if cachedValue, exists := leaseCache.Get(lease.Key); exists {
+			if cachedLease, ok := cachedValue.(leaseCacheRecord); ok {
+				leaseStatus = cachedLease.Status
+				leaseID = cachedLease.ID
+				log.Debugf("Cache hit for lease key: %v", lease.Key)
+			}
 		}
 
-		leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, storageConnection, body, leaseTTL, lease)
-		if err != nil {
-			log.Errorf("%v", err)
-			w.WriteHeader(http.StatusInternalServerError)
+		if leaseStatus == "" {
+			leaseTTL, err := time.ParseDuration(r.Header.Get(defaultLeaseTTLHeader))
+			if err != nil {
+				log.Warnf("Can't parse value of %v header. Using defaultLeaseDurationSeconds for %v", defaultLeaseTTLHeader, lease.Key)
+				leaseTTL = leasemanagement.DefaultLeaseDurationSeconds
+			}
+
+			leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, storageConnection, body, leaseTTL, lease)
+			if err != nil {
+				log.Errorf("%v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+
+			leaseCache.Set(lease.Key, leaseCacheRecord{
+				Status: leaseStatus,
+				ID:     leaseID,
+			}, leaseTTL)
 		}
 
 		switch leaseStatus {
