@@ -3,6 +3,8 @@ package cache
 import (
 	"sync"
 	"time"
+
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 )
 
 type Cache struct {
@@ -33,6 +35,8 @@ func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
 		Value:      value,
 		Expiration: time.Now().Add(ttl),
 	}
+
+	metrics.CacheOperations.WithLabelValues("set", "success").Inc()
 }
 
 func (c *Cache) Get(key string) (interface{}, bool) {
@@ -41,13 +45,17 @@ func (c *Cache) Get(key string) (interface{}, bool) {
 
 	item, exists := c.items[key]
 	if !exists {
+		metrics.CacheOperations.WithLabelValues("get", "miss").Inc()
 		return nil, false
 	}
 
 	if time.Now().After(item.Expiration) {
+		delete(c.items, key)
+		metrics.CacheOperations.WithLabelValues("get", "expired").Inc()
 		return nil, false
 	}
 
+	metrics.CacheOperations.WithLabelValues("get", "hit").Inc()
 	return item.Value, true
 }
 

@@ -94,6 +94,10 @@ func startApplication(leaseID string) {
 			err := sendKeepalive(leaseID)
 			if err != nil {
 				fmt.Printf("Failed to send keepalive: %v\n", err)
+				if err.Error() == "lease is expired" {
+					fmt.Println("Lease is expired, stopping application...")
+					return
+				}
 				continue
 			}
 
@@ -117,6 +121,10 @@ func sendKeepalive(leaseID string) error {
 		return fmt.Errorf("failed to send keepalive: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return fmt.Errorf("lease is expired")
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %v, body: %v", resp.Status, resp.Body)

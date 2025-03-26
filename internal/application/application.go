@@ -13,6 +13,7 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
 )
@@ -26,14 +27,18 @@ type leaseCacheRecord struct {
 	ID     int64
 }
 
-func NewRouter(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) *http.ServeMux {
-	router := http.NewServeMux()
+type Application struct {
+	Config     *config.Config
+	LeaseCache *cache.Cache
+	Ctx        context.Context
+}
 
-	router.HandleFunc("/lease", getLeaseHandler(ctx, configuration, leaseCache))
-	router.HandleFunc("/keepalive", keepaliveHandler(ctx, configuration))
-	router.HandleFunc("/health", healthHandler())
-
-	return router
+func New(ctx context.Context, config *config.Config, leaseCache *cache.Cache) *Application {
+	return &Application{
+		Config:     config,
+		LeaseCache: leaseCache,
+		Ctx:        ctx,
+	}
 }
 
 func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
@@ -45,7 +50,7 @@ func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
 	return storageConnection, nil
 }
 
-func getLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
+func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
 	storageConnection, err := newStorageConnection(configuration)
 	if err != nil {
 		log.Errorf("Failed to connect to storage adapater, %v", err)
@@ -53,6 +58,11 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		defer func() {
+			metrics.LeaseOperationDuration.WithLabelValues("get").Observe(time.Since(start).Seconds())
+		}()
+
 		var err error
 		var lease leasemanagement.Lease
 		var leaseID int64
@@ -89,6 +99,7 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 			leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, storageConnection, body, leaseTTL, lease)
 			if err != nil {
 				log.Errorf("%v", err)
+				metrics.LeaseOperations.WithLabelValues("get", "error").Inc()
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 
@@ -111,10 +122,12 @@ func getLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		if err != nil {
 			log.Errorf("Failed to write response for /lease endpoint, %v", err)
 		}
+
+		metrics.LeaseOperations.WithLabelValues("get", leaseStatus).Inc()
 	}
 }
 
-func keepaliveHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
+func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
 	storageConnection, err := newStorageConnection(configuration)
 	if err != nil {
 		log.Errorf("Failed to connect to storage adapater, %v", err)
@@ -143,11 +156,14 @@ func keepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)
+			metrics.LeaseOperations.WithLabelValues("prolong", "failure").Inc()
 		}
+
+		metrics.LeaseOperations.WithLabelValues("prolong", "success").Inc()
 	}
 }
 
-func healthHandler() http.HandlerFunc {
+func HealthHandler() http.HandlerFunc {
 	return func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}

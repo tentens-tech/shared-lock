@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/tentens-tech/shared-lock/internal/application"
 	"github.com/tentens-tech/shared-lock/internal/config"
+	httpserver "github.com/tentens-tech/shared-lock/internal/delivery/http"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"golang.org/x/sync/errgroup"
 
@@ -40,21 +40,14 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 
 	errGroup.Go(func() error {
 		leaseCache := cache.New()
+		app := application.New(errGroupCtx, configuration, leaseCache)
+		server := httpserver.New(app)
 
-		server := &http.Server{
-			Addr:         ":" + configuration.Server.Port,
-			Handler:      application.NewRouter(errGroupCtx, configuration, leaseCache),
-			ReadTimeout:  configuration.Server.Timeout.Read * time.Second,
-			WriteTimeout: configuration.Server.Timeout.Write * time.Second,
-			IdleTimeout:  configuration.Server.Timeout.Idle * time.Second,
-		}
-
-		log.Printf("Server is starting on %s\n", server.Addr)
+		log.Printf("Server is starting on %s\n", configuration.Server.Port)
 		go func() error {
-			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := server.Start(":" + configuration.Server.Port); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return err
 			}
-
 			return nil
 		}()
 
@@ -67,7 +60,7 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		defer cancel()
 
 		log.Printf("Server is shutting down due to %+v\n", interrupt)
-		if err := server.Shutdown(ctxWithTimeout); err != nil {
+		if err := server.Server.Shutdown(ctxWithTimeout); err != nil {
 			log.Printf("Server was unable to gracefully shutdown due to err: %+v", err)
 			return err
 		}
