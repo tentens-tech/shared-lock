@@ -45,7 +45,7 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 
 		log.Printf("Server is starting on %s\n", configuration.Server.Port)
 		go func() error {
-			if err := server.Start(":" + configuration.Server.Port); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := server.Start(&configuration.Server); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return err
 			}
 			return nil

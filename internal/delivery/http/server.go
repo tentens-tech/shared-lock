@@ -5,6 +5,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tentens-tech/shared-lock/internal/application"
+	"github.com/tentens-tech/shared-lock/internal/config"
 )
 
 type Server struct {
@@ -18,7 +19,7 @@ func New(app *application.Application) *Server {
 	}
 }
 
-func (s *Server) Start(addr string) error {
+func (s *Server) Start(cfg *config.ServerCfg) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/lease", s.handleLease)
 	mux.HandleFunc("/keepalive", s.handleKeepalive)
@@ -26,8 +27,11 @@ func (s *Server) Start(addr string) error {
 	mux.Handle("/metrics", promhttp.Handler())
 
 	s.Server = &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:         ":" + cfg.Port,
+		Handler:      mux,
+		ReadTimeout:  cfg.Timeout.Read,
+		WriteTimeout: cfg.Timeout.Write,
+		IdleTimeout:  cfg.Timeout.Idle,
 	}
 
 	return s.Server.ListenAndServe()
