@@ -38,8 +38,9 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	leaseCache := cache.New()
+
 	errGroup.Go(func() error {
-		leaseCache := cache.New()
 		app := application.New(errGroupCtx, configuration, leaseCache)
 		server := httpserver.New(app)
 
