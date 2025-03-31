@@ -4,6 +4,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	LeaseOperationProlong = "prolong"
+	LeaseOperationGet     = "get"
+)
+
 var (
 	LeaseOperations = prometheus.NewCounterVec(
 		prometheus.CounterOpts{

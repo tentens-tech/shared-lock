@@ -51,7 +51,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		defer func() {
-			metrics.LeaseOperationDuration.WithLabelValues("get").Observe(time.Since(start).Seconds())
+			metrics.LeaseOperationDuration.WithLabelValues(metrics.LeaseOperationGet).Observe(time.Since(start).Seconds())
 		}()
 
 		var err error
@@ -77,6 +77,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 				leaseStatus = cachedLease.Status
 				leaseID = cachedLease.ID
 				log.Debugf("Cache hit for lease key: %v", lease.Key)
+				metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
 			}
 		}
 
@@ -90,7 +91,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 			leaseStatus, leaseID, err = leasemanagement.CreateLease(ctx, storageConnection, body, leaseTTL, lease)
 			if err != nil {
 				log.Errorf("%v", err)
-				metrics.LeaseOperations.WithLabelValues("get", "error").Inc()
+				metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, "error").Inc()
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 
@@ -114,7 +115,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 			log.Errorf("Failed to write response for /lease endpoint, %v", err)
 		}
 
-		metrics.LeaseOperations.WithLabelValues("get", leaseStatus).Inc()
+		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
 	}
 }
 
@@ -147,10 +148,10 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)
-			metrics.LeaseOperations.WithLabelValues("prolong", "failure").Inc()
+			metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "failure").Inc()
 		}
 
-		metrics.LeaseOperations.WithLabelValues("prolong", "success").Inc()
+		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "success").Inc()
 	}
 }
 
