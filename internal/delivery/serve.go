@@ -45,25 +45,33 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		server := httpserver.New(app)
 
 		log.Printf("Server is starting on %s\n", configuration.Server.Port)
-		go func() error {
+		serverErrChan := make(chan error, 1)
+		go func() {
 			if err := server.Start(&configuration.Server); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return err
+				log.Errorf("Server encountered an error: %v", err)
+				serverErrChan <- err
+				return
 			}
-			return nil
+			serverErrChan <- nil
 		}()
 
-		interrupt := <-runChan
+		select {
+		case err := <-serverErrChan:
+			if err != nil {
+				return err
+			}
+		case interrupt := <-runChan:
+			ctxWithTimeout, cancel := context.WithTimeout(
+				errGroupCtx,
+				configuration.Server.Timeout.Shutdown,
+			)
+			defer cancel()
 
-		ctxWithTimeout, cancel := context.WithTimeout(
-			errGroupCtx,
-			configuration.Server.Timeout.Shutdown,
-		)
-		defer cancel()
-
-		log.Printf("Server is shutting down due to %+v\n", interrupt)
-		if err := server.Server.Shutdown(ctxWithTimeout); err != nil {
-			log.Printf("Server was unable to gracefully shutdown due to err: %+v", err)
-			return err
+			log.Printf("Server is shutting down due to %+v\n", interrupt)
+			if err := server.Server.Shutdown(ctxWithTimeout); err != nil {
+				log.Errorf("Server was unable to gracefully shutdown due to err: %+v", err)
+				return err
+			}
 		}
 
 		return nil
