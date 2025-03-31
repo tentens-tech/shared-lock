@@ -13,7 +13,7 @@ const (
 	baseURL           = "http://localhost:8080"
 	leaseEndpoint     = "/lease"
 	keepaliveEndpoint = "/keepalive"
-	leaseTTL          = "2s"            // Base time to live for a lease
+	leaseTTL          = "3s"            // Base time to live for a lease
 	retryInterval     = 2 * time.Second // Time to wait before retrying to obtain a lease
 	keepaliveInterval = 2 * time.Second // Time interval to send keepalive requests
 )
@@ -66,7 +66,11 @@ func obtainLease(lease Lease) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode == http.StatusAccepted {
+		return "", fmt.Errorf("lease already exists")
+	}
+
+	if resp.StatusCode != http.StatusCreated {
 		return "", fmt.Errorf("unexpected response status: %v, body: %v", resp.Status, resp.Body)
 	}
 
@@ -90,6 +94,10 @@ func startApplication(leaseID string) {
 			err := sendKeepalive(leaseID)
 			if err != nil {
 				fmt.Printf("Failed to send keepalive: %v\n", err)
+				if err.Error() == "lease is expired" {
+					fmt.Println("Lease is expired, stopping application...")
+					return
+				}
 				continue
 			}
 
@@ -114,7 +122,11 @@ func sendKeepalive(leaseID string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode == http.StatusNoContent {
+		return fmt.Errorf("lease is expired")
+	}
+
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %v, body: %v", resp.Status, resp.Body)
 	}
 
