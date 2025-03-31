@@ -41,15 +41,6 @@ func New(ctx context.Context, config *config.Config, leaseCache *cache.Cache) *A
 	}
 }
 
-func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
-	storageConnection, err := etcd.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
-	}
-
-	return storageConnection, nil
-}
-
 func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
 	storageConnection, err := newStorageConnection(configuration)
 	if err != nil {
@@ -167,4 +158,13 @@ func HealthHandler() http.HandlerFunc {
 	return func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}
+}
+
+func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
+	storageConnection, err := etcd.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
+	}
+
+	return storageConnection, nil
 }
