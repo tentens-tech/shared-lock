@@ -63,6 +63,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		if err != nil {
 			log.Errorf("Failed to read request body, %v", err)
 			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
 		}
 
 		log.Debugf("Request body: %v", string(body))
@@ -70,6 +71,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		if err != nil {
 			log.Errorf("Failed to unmarshal request body, %v", err)
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
+			return
 		}
 
 		if cachedValue, exists := leaseCache.Get(lease.Key); exists {
@@ -93,6 +95,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 				log.Errorf("%v", err)
 				metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, "error").Inc()
 				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 
 			leaseCache.Set(lease.Key, leaseCacheRecord{
@@ -113,6 +116,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		_, err = w.Write([]byte(fmt.Sprintf("%v", leaseID)))
 		if err != nil {
 			log.Errorf("Failed to write response for /lease endpoint, %v", err)
+			return
 		}
 
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
@@ -134,6 +138,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Errorf("Failed to read request body, %v", err)
 			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
 		}
 
 		log.Debugf("Request body: %v", string(body))
@@ -141,6 +146,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Errorf("Failed to parse lease id from string, leaseIDString: %v, %v", string(body), err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		log.Debugf("Trying to revive lease: %v", leaseID)
@@ -149,6 +155,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)
 			metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "failure").Inc()
+			return
 		}
 
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "success").Inc()
