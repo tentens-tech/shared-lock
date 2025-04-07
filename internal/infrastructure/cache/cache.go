@@ -19,7 +19,7 @@ type Cache struct {
 type CacheItem struct {
 	Value      interface{}
 	Expiration time.Time
-	key        string // Store key for LRU eviction
+	key        string
 }
 
 type lruItem struct {
@@ -46,7 +46,6 @@ func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
 	if item, exists := c.items[key]; exists {
 		item.Value = value
 		item.Expiration = time.Now().Add(ttl)
-		// Move to front of LRU list
 		if elem, ok := c.keyToLRU[key]; ok {
 			c.lruList.MoveToFront(elem)
 		}

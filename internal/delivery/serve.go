@@ -38,7 +38,13 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	leaseCache := cache.New(configuration.Cache.Size)
+	var leaseCache *cache.Cache
+	if configuration.Cache.Enabled {
+		log.Info("Cache is enabled")
+		leaseCache = cache.New(configuration.Cache.Size)
+	} else {
+		log.Info("Cache is disabled")
+	}
 
 	errGroup.Go(func() error {
 		app := application.New(errGroupCtx, configuration, leaseCache)

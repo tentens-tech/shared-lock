@@ -22,6 +22,7 @@ const (
 	DefaultEtcdServerClientCertPath = "/etc/etcd/client.crt"
 	DefaultEtcdServerClientKeyPath  = "/etc/etcd/client.key"
 	DefaultCacheSize                = 1000
+	DefaultCacheEnabled             = false
 )
 
 type Config struct {
@@ -61,7 +62,8 @@ type EtcdCfg struct {
 }
 
 type CacheCfg struct {
-	Size int
+	Enabled bool
+	Size    int
 }
 
 func NewConfig() *Config {
@@ -91,7 +93,8 @@ func NewConfig() *Config {
 			},
 		},
 		Cache: CacheCfg{
-			Size: getEnv("SHARED_LOCK_CACHE_SIZE", DefaultCacheSize),
+			Enabled: getEnv("SHARED_LOCK_CACHE_ENABLED", DefaultCacheEnabled),
+			Size:    getEnv("SHARED_LOCK_CACHE_SIZE", DefaultCacheSize),
 		},
 		Debug: getEnv("SHARED_LOCK_DEBUG", false),
 	}

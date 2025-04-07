@@ -89,12 +89,14 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 			return
 		}
 
-		if cachedValue, exists := leaseCache.Get(lease.Key); exists {
-			if cachedLease, ok := cachedValue.(leaseCacheRecord); ok {
-				leaseStatus = cachedLease.Status
-				leaseID = cachedLease.ID
-				log.Debugf("Cache hit for lease key: %v", lease.Key)
-				metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
+		if leaseCache != nil {
+			if cachedValue, exists := leaseCache.Get(lease.Key); exists {
+				if cachedLease, ok := cachedValue.(leaseCacheRecord); ok {
+					leaseStatus = cachedLease.Status
+					leaseID = cachedLease.ID
+					log.Debugf("Cache hit for lease key: %v", lease.Key)
+					metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
+				}
 			}
 		}
 
@@ -113,10 +115,12 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 				return
 			}
 
-			leaseCache.Set(lease.Key, leaseCacheRecord{
-				Status: leaseStatus,
-				ID:     leaseID,
-			}, leaseTTL)
+			if leaseCache != nil {
+				leaseCache.Set(lease.Key, leaseCacheRecord{
+					Status: leaseStatus,
+					ID:     leaseID,
+				}, leaseTTL)
+			}
 		}
 
 		switch leaseStatus {
