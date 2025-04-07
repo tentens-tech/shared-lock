@@ -199,3 +199,75 @@ func TestGetLeaseHandlerMemoryUsage(t *testing.T) {
 	assert.LessOrEqual(t, memoryAlloc, maxMemoryMB,
 		"Memory usage should be less than 50MB for 1000 leases")
 }
+
+func TestKeepaliveHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "Successful keepalive",
+			requestBody:    "123",
+			expectedStatus: http.StatusOK,
+			expectedBody:   "",
+		},
+		{
+			name:           "Invalid lease ID format",
+			requestBody:    "invalid-id",
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "",
+		},
+		{
+			name:           "Empty request body",
+			requestBody:    "",
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			cfg := createTestConfig()
+
+			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString(tt.requestBody))
+			rr := httptest.NewRecorder()
+
+			handler := KeepaliveHandler(ctx, cfg)
+			assert.NotNil(t, handler)
+
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, tt.expectedStatus, rr.Code)
+			if tt.expectedBody != "" {
+				assert.Equal(t, tt.expectedBody, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestKeepaliveHandlerConcurrent(t *testing.T) {
+	ctx := context.Background()
+	cfg := createTestConfig()
+
+	numRequests := 50
+	var wg sync.WaitGroup
+	wg.Add(numRequests)
+
+	for i := 0; i < numRequests; i++ {
+		go func() {
+			defer wg.Done()
+
+			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString("123"))
+			rr := httptest.NewRecorder()
+			handler := KeepaliveHandler(ctx, cfg)
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+		}()
+	}
+
+	wg.Wait()
+}
