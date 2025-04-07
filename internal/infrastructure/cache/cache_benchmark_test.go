@@ -165,7 +165,6 @@ func BenchmarkCacheMemoryGrowth(b *testing.B) {
 	assert.Less(b, float64(filledAlloc-clearedAlloc), float64(25*1024*1024), "Memory difference after clearing should be less than 25MB")
 }
 
-// BenchmarkCacheWithJSON tests the cache with JSON serialization/deserialization
 func BenchmarkCacheWithJSON(b *testing.B) {
 	c := New(cacheSize)
 
@@ -202,16 +201,16 @@ func BenchmarkCacheWithJSON(b *testing.B) {
 	b.Logf("Memory allocated for JSON serialization/deserialization: %v bytes (%.2f MB)",
 		memoryAlloc, float64(memoryAlloc)/1024/1024)
 
-	// Measure performance of JSON operations
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		jsonData, _ = json.Marshal(lease)
-
+		jsonData, err = json.Marshal(lease)
+		assert.NoError(b, err)
 		c.Set(fmt.Sprintf("json-lease-%d", i), jsonData, time.Hour)
 
 		value, _ = c.Get(fmt.Sprintf("json-lease-%d", i))
 		retrievedData = value.([]byte)
 
-		json.Unmarshal(retrievedData, &retrievedLease)
+		err = json.Unmarshal(retrievedData, &retrievedLease)
+		assert.NoError(b, err)
 	}
 }
