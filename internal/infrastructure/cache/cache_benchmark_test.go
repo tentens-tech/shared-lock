@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"sync"
@@ -15,6 +16,58 @@ const (
 	testDuration = 10 * time.Second
 	cacheSize    = 10000
 )
+
+type LeaseRecord struct {
+	Key       string                 `json:"key"`
+	Value     string                 `json:"value"`
+	Labels    map[string]string      `json:"labels"`
+	CreatedAt time.Time              `json:"timestamp"`
+	Metadata  map[string]interface{} `json:"metadata"`
+}
+
+func createComplexLeaseRecord(index int) LeaseRecord {
+	return LeaseRecord{
+		Key:   fmt.Sprintf("service-run-command-%d", index),
+		Value: fmt.Sprintf("This is a large value that contains a lot of data for lease %d", index),
+		Labels: map[string]string{
+			"command":  "/app/service run-command",
+			"hostname": "service-singleton-worker-6b9865cfc6-dt2fv",
+			"env":      "production",
+			"region":   "us",
+			"service":  "service-service",
+			"version":  "1.2.3",
+			"team":     "platform",
+			"owner":    "devops",
+			"priority": "high",
+			"type":     "scheduled",
+			"schedule": "0 0 * * *",
+			"timeout":  "300s",
+			"retries":  "3",
+			"tags":     "automation,maintenance,cleanup",
+			"jira":     "PLAT-1234",
+			"slack":    "#platform-alerts",
+			"email":    "platform@company.com",
+			"status":   "active",
+		},
+		CreatedAt: time.Now().UTC(),
+		Metadata: map[string]interface{}{
+			"created": "2023-01-01T00:00:00Z",
+			"updated": "2023-01-02T00:00:00Z",
+			"expires": "2023-12-31T23:59:59Z",
+			"nested": map[string]interface{}{
+				"field1": "value1",
+				"field2": 123,
+				"field3": true,
+				"field4": []string{"item1", "item2", "item3"},
+			},
+			"metrics": map[string]interface{}{
+				"cpu":    0.75,
+				"memory": 1024,
+				"disk":   5120,
+			},
+		},
+	}
+}
 
 func BenchmarkCacheUnderLoad(b *testing.B) {
 	c := New(cacheSize)
@@ -42,7 +95,7 @@ func BenchmarkCacheUnderLoad(b *testing.B) {
 				return
 			case <-ticker.C:
 				key := fmt.Sprintf("key-%d", requestCount)
-				value := fmt.Sprintf("value-%d", requestCount)
+				value := createComplexLeaseRecord(int(requestCount))
 
 				c.Set(key, value, time.Minute)
 
@@ -90,7 +143,7 @@ func BenchmarkCacheMemoryGrowth(b *testing.B) {
 	numItems := int(float64(cacheSize) * 0.8)
 	for i := 0; i < numItems; i++ {
 		key := fmt.Sprintf("key-%d", i)
-		value := fmt.Sprintf("value-%d", i)
+		value := createComplexLeaseRecord(i)
 		c.Set(key, value, time.Hour)
 	}
 
@@ -109,5 +162,56 @@ func BenchmarkCacheMemoryGrowth(b *testing.B) {
 	b.Logf("Memory difference: %v bytes (%.2f MB)", filledAlloc-clearedAlloc, float64(filledAlloc-clearedAlloc)/1024/1024)
 
 	assert.Less(b, float64(filledAlloc), float64(50*1024*1024), "Memory usage with 80% filled cache should be less than 50MB")
-	assert.Less(b, float64(filledAlloc-clearedAlloc), float64(10*1024*1024), "Memory difference after clearing should be less than 10MB")
+	assert.Less(b, float64(filledAlloc-clearedAlloc), float64(25*1024*1024), "Memory difference after clearing should be less than 25MB")
+}
+
+// BenchmarkCacheWithJSON tests the cache with JSON serialization/deserialization
+func BenchmarkCacheWithJSON(b *testing.B) {
+	c := New(cacheSize)
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	initialAlloc := m.Alloc
+
+	lease := createComplexLeaseRecord(1)
+
+	jsonData, err := json.Marshal(lease)
+	assert.NoError(b, err)
+
+	c.Set("json-lease", jsonData, time.Hour)
+
+	var retrievedData []byte
+	var exists bool
+	var value interface{}
+	value, exists = c.Get("json-lease")
+	retrievedData = value.([]byte)
+	assert.True(b, exists)
+
+	var retrievedLease LeaseRecord
+	err = json.Unmarshal(retrievedData, &retrievedLease)
+	assert.NoError(b, err)
+
+	assert.Equal(b, lease.Key, retrievedLease.Key)
+	assert.Equal(b, lease.Value, retrievedLease.Value)
+	assert.Equal(b, len(lease.Labels), len(retrievedLease.Labels))
+
+	runtime.GC()
+	runtime.ReadMemStats(&m)
+
+	memoryAlloc := m.Alloc - initialAlloc
+	b.Logf("Memory allocated for JSON serialization/deserialization: %v bytes (%.2f MB)",
+		memoryAlloc, float64(memoryAlloc)/1024/1024)
+
+	// Measure performance of JSON operations
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		jsonData, _ = json.Marshal(lease)
+
+		c.Set(fmt.Sprintf("json-lease-%d", i), jsonData, time.Hour)
+
+		value, _ = c.Get(fmt.Sprintf("json-lease-%d", i))
+		retrievedData = value.([]byte)
+
+		json.Unmarshal(retrievedData, &retrievedLease)
+	}
 }
