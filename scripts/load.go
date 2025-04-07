@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -141,8 +141,8 @@ func main() {
 						continue
 					}
 
-					respBody, err := ioutil.ReadAll(resp.Body)
-					resp.Body.Close()
+					respBody, err := io.ReadAll(resp.Body)
+					defer resp.Body.Close()
 
 					if err != nil {
 						if *verbose {

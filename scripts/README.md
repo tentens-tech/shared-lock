@@ -24,7 +24,7 @@ go build -o load scripts/load.go
 ./load
 
 # Run with custom settings
-./load -url=http://localhost:8080 -endpoint=/api/leases -concurrency=20 -duration=1m
+./load -url=http://localhost:8080 -endpoint=/lease -concurrency=20 -duration=1m
 
 # Run with a custom request body
 ./load -body='{"key":"custom-key","value":"custom-value","labels":{"test":"load-test","priority":"high"}}'
@@ -38,9 +38,9 @@ go build -o load scripts/load.go
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-url` | Base URL of the application | `http://localhost:8080` |
-| `-endpoint` | API endpoint to test | `/api/leases` |
+| `-endpoint` | API endpoint to test | `/lease` |
 | `-method` | HTTP method to use | `POST` |
-| `-concurrency` | Number of concurrent clients | `10` |
+| `-concurrency` | Number of concurrent clients | `150` |
 | `-duration` | Duration of the load test | `30s` |
 | `-body` | Request body (JSON) | `{"key":"test-key","value":"test-value","labels":{"test":"load-test"}}` |
 | `-verbose` | Enable verbose output | `false` |
