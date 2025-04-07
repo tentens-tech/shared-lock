@@ -83,12 +83,10 @@ func BenchmarkCacheMemoryGrowth(b *testing.B) {
 	cacheSize := 10000
 	c := New(cacheSize)
 
-	// Track memory stats
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	initialAlloc := m.Alloc
 
-	// Fill cache to 80% capacity
 	numItems := int(float64(cacheSize) * 0.8)
 	for i := 0; i < numItems; i++ {
 		key := fmt.Sprintf("key-%d", i)
@@ -96,15 +94,12 @@ func BenchmarkCacheMemoryGrowth(b *testing.B) {
 		c.Set(key, value, time.Hour)
 	}
 
-	// Get memory stats after filling
 	runtime.GC()
 	runtime.ReadMemStats(&m)
 	filledAlloc := m.Alloc - initialAlloc
 
-	// Clear cache
 	c.SetMaxSize(0)
 
-	// Get memory stats after clearing
 	runtime.GC()
 	runtime.ReadMemStats(&m)
 	clearedAlloc := m.Alloc - initialAlloc
