@@ -16,6 +16,7 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/mock"
 )
 
 const (
@@ -41,6 +42,20 @@ func New(ctx context.Context, config *config.Config, leaseCache *cache.Cache) *A
 	}
 }
 
+func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
+	if cfg.Storage.Type == "etcd" {
+		storageConnection, err := etcd.New(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
+		}
+		return storageConnection, nil
+	} else if cfg.Storage.Type == "mock" {
+		return &mock.Storage{}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported storage type: %v", cfg.Storage.Type)
+}
+
 func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
 	storageConnection, err := newStorageConnection(configuration)
 	if err != nil {
@@ -63,6 +78,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		if err != nil {
 			log.Errorf("Failed to read request body, %v", err)
 			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
 		}
 
 		log.Debugf("Request body: %v", string(body))
@@ -70,6 +86,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		if err != nil {
 			log.Errorf("Failed to unmarshal request body, %v", err)
 			http.Error(w, "Failed to unmarshal request body", http.StatusBadRequest)
+			return
 		}
 
 		if cachedValue, exists := leaseCache.Get(lease.Key); exists {
@@ -93,6 +110,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 				log.Errorf("%v", err)
 				metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, "error").Inc()
 				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
 
 			leaseCache.Set(lease.Key, leaseCacheRecord{
@@ -113,6 +131,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 		_, err = w.Write([]byte(fmt.Sprintf("%v", leaseID)))
 		if err != nil {
 			log.Errorf("Failed to write response for /lease endpoint, %v", err)
+			return
 		}
 
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
@@ -134,6 +153,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Errorf("Failed to read request body, %v", err)
 			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
 		}
 
 		log.Debugf("Request body: %v", string(body))
@@ -141,6 +161,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 		if err != nil {
 			log.Errorf("Failed to parse lease id from string, leaseIDString: %v, %v", string(body), err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		log.Debugf("Trying to revive lease: %v", leaseID)
@@ -149,6 +170,7 @@ func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.Ha
 			log.Warnf("Failed to prolong lease: %v", err)
 			http.Error(w, "Failed to prolong lease", http.StatusNoContent)
 			metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "failure").Inc()
+			return
 		}
 
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "success").Inc()
@@ -159,13 +181,4 @@ func HealthHandler() http.HandlerFunc {
 	return func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}
-}
-
-func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
-	storageConnection, err := etcd.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
-	}
-
-	return storageConnection, nil
 }

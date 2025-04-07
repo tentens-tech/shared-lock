@@ -30,7 +30,7 @@ func New(cfg *config.Config) (*Etcd, error) {
 	}
 
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   cfg.Etcd.EtcdAddrList,
+		Endpoints:   cfg.Storage.Etcd.EtcdAddrList,
 		DialTimeout: defaultDialTimeout,
 		TLS:         tlsConfig,
 	})
@@ -44,7 +44,7 @@ func New(cfg *config.Config) (*Etcd, error) {
 }
 
 func generateTLSConfig(cfg *config.Config) (*tls.Config, error) {
-	if !cfg.Etcd.TLSEnabled {
+	if !cfg.Storage.Etcd.TLSEnabled {
 		return nil, nil
 	}
 
@@ -52,9 +52,9 @@ func generateTLSConfig(cfg *config.Config) (*tls.Config, error) {
 	var err error
 
 	tlsInfo := transport.TLSInfo{
-		TrustedCAFile: cfg.Etcd.ServerCACertPath,
-		CertFile:      cfg.Etcd.ServerClientCertPath,
-		KeyFile:       cfg.Etcd.ServerClientKeyPath,
+		TrustedCAFile: cfg.Storage.Etcd.ServerCACertPath,
+		CertFile:      cfg.Storage.Etcd.ServerClientCertPath,
+		KeyFile:       cfg.Storage.Etcd.ServerClientKeyPath,
 	}
 
 	tlsConfig, err = tlsInfo.ClientConfig()

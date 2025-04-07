@@ -15,17 +15,20 @@ const (
 	DefaultServerWriteTimeout       = 10 * time.Second
 	DefaultServerIdleTimeout        = 120 * time.Second
 	DefaultServerShutdownTimeout    = 10 * time.Second
+	DefaultStorageType              = "etcd"
 	DefaultEtcdAddrList             = "http://localhost:2379"
 	DefaultEtcdTLSEnabled           = false
 	DefaultEtcdServerCACertPath     = "/etc/etcd/ca.crt"
 	DefaultEtcdServerClientCertPath = "/etc/etcd/client.crt"
 	DefaultEtcdServerClientKeyPath  = "/etc/etcd/client.key"
+	DefaultCacheSize                = 1000
 )
 
 type Config struct {
-	Server ServerCfg
-	Etcd   EtcdCfg
-	Debug  bool
+	Server  ServerCfg
+	Storage StorageCfg
+	Cache   CacheCfg
+	Debug   bool
 }
 
 type ServerCfg struct {
@@ -40,12 +43,25 @@ type ServerTimeout struct {
 	Shutdown time.Duration
 }
 
+type StorageCfg struct {
+	Type string `validate:"required" oneof:"etcd mock"`
+	Etcd EtcdCfg
+	Mock MockCfg
+}
+
+type MockCfg struct {
+}
+
 type EtcdCfg struct {
 	EtcdAddrList         []string
 	TLSEnabled           bool
 	ServerCACertPath     string
 	ServerClientCertPath string
 	ServerClientKeyPath  string
+}
+
+type CacheCfg struct {
+	Size int
 }
 
 func NewConfig() *Config {
@@ -64,12 +80,18 @@ func NewConfig() *Config {
 				Shutdown: getEnv("SHARED_LOCK_SERVER_SHUTDOWN_TIMEOUT", DefaultServerShutdownTimeout),
 			},
 		},
-		Etcd: EtcdCfg{
-			EtcdAddrList:         etcdEndpointsList,
-			TLSEnabled:           getEnv("SHARED_LOCK_ETCD_TLS", DefaultEtcdTLSEnabled),
-			ServerCACertPath:     getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerCACertPath),
-			ServerClientCertPath: getEnv("SHARED_LOCK_CLIENT_CERT_PATH", DefaultEtcdServerClientCertPath),
-			ServerClientKeyPath:  getEnv("SHARED_LOCK_CLIENT_KEY_PATH", DefaultEtcdServerClientKeyPath),
+		Storage: StorageCfg{
+			Type: getEnv("SHARED_LOCK_STORAGE_TYPE", DefaultStorageType),
+			Etcd: EtcdCfg{
+				EtcdAddrList:         etcdEndpointsList,
+				TLSEnabled:           getEnv("SHARED_LOCK_ETCD_TLS", DefaultEtcdTLSEnabled),
+				ServerCACertPath:     getEnv("SHARED_LOCK_CA_CERT_PATH", DefaultEtcdServerCACertPath),
+				ServerClientCertPath: getEnv("SHARED_LOCK_CLIENT_CERT_PATH", DefaultEtcdServerClientCertPath),
+				ServerClientKeyPath:  getEnv("SHARED_LOCK_CLIENT_KEY_PATH", DefaultEtcdServerClientKeyPath),
+			},
+		},
+		Cache: CacheCfg{
+			Size: getEnv("SHARED_LOCK_CACHE_SIZE", DefaultCacheSize),
 		},
 		Debug: getEnv("SHARED_LOCK_DEBUG", false),
 	}
