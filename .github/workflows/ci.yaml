@@ -8,7 +8,25 @@ on:
       - '**'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+          
+      - name: Run tests
+        run: go test -v ./...
+        
+      - name: Run benchmark tests
+        run: go test -bench=. -benchmem ./internal/infrastructure/cache/...
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:

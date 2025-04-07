@@ -16,6 +16,7 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/mock"
 )
 
 const (
@@ -39,6 +40,20 @@ func New(ctx context.Context, config *config.Config, leaseCache *cache.Cache) *A
 		LeaseCache: leaseCache,
 		Ctx:        ctx,
 	}
+}
+
+func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
+	if cfg.Storage.Type == "etcd" {
+		storageConnection, err := etcd.New(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
+		}
+		return storageConnection, nil
+	} else if cfg.Storage.Type == "mock" {
+		return &mock.Storage{}, nil
+	}
+
+	return nil, fmt.Errorf("unsupported storage type: %v", cfg.Storage.Type)
 }
 
 func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
@@ -166,13 +181,4 @@ func HealthHandler() http.HandlerFunc {
 	return func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}
-}
-
-func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
-	storageConnection, err := etcd.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
-	}
-
-	return storageConnection, nil
 }
