@@ -44,6 +44,11 @@ func main() {
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        *concurrency,
+			MaxIdleConnsPerHost: *concurrency,
+			DisableCompression:  true,
+		},
 	}
 
 	var (

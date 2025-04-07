@@ -47,7 +47,7 @@ go build -o load_test scripts/load.go
 
 ### Example Output
 
-```
+``` text
 Requests: 150, Success: 148, Failed: 2, RPS: 5.00, Avg Latency: 45.32 ms
 
 Load test completed in 30.00 seconds

@@ -44,7 +44,6 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		leaseCache = cache.New(configuration.Cache.Size)
 	} else {
 		log.Info("Cache is disabled")
-		leaseCache = nil
 	}
 
 	errGroup.Go(func() error {
