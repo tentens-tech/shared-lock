@@ -18,10 +18,10 @@ The `load.go` script is a simple HTTP load testing tool that can be used to test
 
 ```bash
 # Build the script
-go build -o load_test scripts/load.go
+go build -o load scripts/load.go
 
 # Run with default settings (150 concurrent clients for 30 seconds)
-./load_test
+./load
 
 # Run with custom settings
 ./load -url=http://localhost:8080 -endpoint=/api/leases -concurrency=20 -duration=1m
