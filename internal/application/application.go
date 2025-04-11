@@ -71,12 +71,12 @@ func (a *Application) CheckLeasePresenceInCache(key string) (bool, error) {
 func (a *Application) GetLeaseFromCache(key string) (string, int64) {
 	if cachedValue, exists := a.leaseCache.Get(key); exists {
 		if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
+			log.Debugf("Cache hit for lease key: %v", key)
+			metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
+
 			return cachedLease.Status, cachedLease.ID
 		}
 	}
-
-	log.Debugf("Cache hit for lease key: %v", key)
-	metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
 
 	return "", 0
 }
