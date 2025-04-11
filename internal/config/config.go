@@ -76,7 +76,7 @@ func NewConfig() *Config {
 	return &Config{
 		Server: ServerCfg{
 			Port:         getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
-			PPROFEnabled: getEnv("SHARED_LOCK_PPROF_ENABLED", false),
+			PPROFEnabled: getEnv("SHARED_LOCK_PPROF_ENABLED", true),
 			Timeout: ServerTimeout{
 				Read:     getEnv("SHARED_LOCK_SERVER_READ_TIMEOUT", DefaultServerReadTimeout),
 				Write:    getEnv("SHARED_LOCK_SERVER_WRITE_TIMEOUT", DefaultServerWriteTimeout),
@@ -95,7 +95,7 @@ func NewConfig() *Config {
 			},
 		},
 		Cache: CacheCfg{
-			Enabled: getEnv("SHARED_LOCK_CACHE_ENABLED", DefaultCacheEnabled),
+			Enabled: getEnv("SHARED_LOCK_CACHE_ENABLED", true),
 			Size:    getEnv("SHARED_LOCK_CACHE_SIZE", DefaultCacheSize),
 		},
 		Debug: getEnv("SHARED_LOCK_DEBUG", false),

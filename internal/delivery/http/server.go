@@ -15,7 +15,6 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/application"
 	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
-	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 )
@@ -84,15 +83,13 @@ func (s *Server) handleLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.app.LeaseCache != nil {
-		if cachedValue, exists := s.app.LeaseCache.Get(lease.Key); exists {
-			if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
-				leaseStatus = cachedLease.Status
-				leaseID = cachedLease.ID
-				log.Debugf("Cache hit for lease key: %v", lease.Key)
-				metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
-			}
-		}
+	isLeasePresentInCache, err := s.app.CheckLeasePresenceInCache(lease.Key)
+	if err != nil {
+		log.Errorf("Failed to check lease presence in cache, %v", err)
+	}
+
+	if isLeasePresentInCache {
+		leaseStatus, leaseID = s.app.GetLeaseFromCache(lease.Key)
 	}
 
 	if leaseStatus == "" {
@@ -108,12 +105,7 @@ func (s *Server) handleLease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if s.app.LeaseCache != nil {
-			s.app.LeaseCache.Set(lease.Key, cache.LeaseCacheRecord{
-				Status: leaseStatus,
-				ID:     leaseID,
-			}, leaseTTL)
-		}
+		s.app.AddLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
 	}
 
 	switch leaseStatus {

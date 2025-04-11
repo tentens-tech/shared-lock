@@ -13,18 +13,18 @@ import (
 )
 
 type Application struct {
-	Config            *config.Config
-	LeaseCache        *cache.Cache
-	Ctx               context.Context
-	StorageConnection storage.Storage
+	config            *config.Config
+	leaseCache        *cache.Cache
+	ctx               context.Context
+	storageConnection storage.Storage
 }
 
 func New(ctx context.Context, config *config.Config, storageConnection storage.Storage, leaseCache *cache.Cache) *Application {
 	return &Application{
-		Config:            config,
-		LeaseCache:        leaseCache,
-		StorageConnection: storageConnection,
-		Ctx:               ctx,
+		config:            config,
+		leaseCache:        leaseCache,
+		storageConnection: storageConnection,
+		ctx:               ctx,
 	}
 }
 
@@ -32,7 +32,7 @@ func (a *Application) CreateLease(
 	leaseTTL time.Duration,
 	lease leasemanagement.Lease,
 ) (leaseStatus string, leaseID int64, err error) {
-	leaseStatus, leaseID, err = leasemanagement.CreateLease(a.Ctx, a.StorageConnection, leaseTTL, lease)
+	leaseStatus, leaseID, err = leasemanagement.CreateLease(a.ctx, a.storageConnection, leaseTTL, lease)
 	if err != nil {
 		log.Errorf("%v", err)
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, "error").Inc()
@@ -45,7 +45,7 @@ func (a *Application) CreateLease(
 }
 
 func (a *Application) ReviveLease(leaseID int64) error {
-	err := leasemanagement.ReviveLease(a.Ctx, a.StorageConnection, leaseID)
+	err := leasemanagement.ReviveLease(a.ctx, a.storageConnection, leaseID)
 	if err != nil {
 		log.Errorf("Failed to prolong lease: %v", err)
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "failure").Inc()
@@ -54,4 +54,40 @@ func (a *Application) ReviveLease(leaseID int64) error {
 
 	metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationProlong, "success").Inc()
 	return nil
+}
+
+func (a *Application) CheckLeasePresenceInCache(key string) (bool, error) {
+	if a.leaseCache == nil {
+		return false, nil
+	}
+
+	if _, exists := a.leaseCache.Get(key); exists {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (a *Application) GetLeaseFromCache(key string) (string, int64) {
+	if cachedValue, exists := a.leaseCache.Get(key); exists {
+		if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
+			return cachedLease.Status, cachedLease.ID
+		}
+	}
+
+	log.Debugf("Cache hit for lease key: %v", key)
+	metrics.CacheOperations.WithLabelValues(metrics.LeaseOperationGet, "success").Inc()
+
+	return "", 0
+}
+
+func (a *Application) AddLeaseToCache(key string, status string, id int64, ttl time.Duration) {
+	if a.leaseCache == nil {
+		return
+	}
+
+	a.leaseCache.Set(key, cache.LeaseCacheRecord{
+		Status: status,
+		ID:     id,
+	}, ttl)
 }
