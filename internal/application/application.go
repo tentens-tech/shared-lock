@@ -12,8 +12,6 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
 )
 
-const DefaultLeaseDurationSeconds = 30 * time.Second
-
 type Application struct {
 	Config            *config.Config
 	LeaseCache        *cache.Cache
