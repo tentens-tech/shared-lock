@@ -26,6 +26,11 @@ type lruItem struct {
 	key string
 }
 
+type LeaseCacheRecord struct {
+	Status string
+	ID     int64
+}
+
 func New(cacheSize int) *Cache {
 	cache := &Cache{
 		items:    make(map[string]*CacheItem),

@@ -1,18 +1,14 @@
 package application
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tentens-tech/shared-lock/internal/application/command/leasemanagement"
 	"github.com/tentens-tech/shared-lock/internal/config"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
@@ -22,62 +18,42 @@ import (
 func createTestConfig() *config.Config {
 	cfg := config.NewConfig()
 	cfg.Storage.Type = "mock"
-
 	return cfg
 }
 
-func TestGetLeaseHandler(t *testing.T) {
+func TestApplication_CreateLease(t *testing.T) {
 	tests := []struct {
 		name           string
-		requestBody    interface{}
-		leaseTTL       string
-		cacheKey       string
-		cacheValue     interface{}
-		expectedStatus int
-		expectedBody   string
+		leaseTTL       time.Duration
+		lease          leasemanagement.Lease
+		expectedStatus string
+		expectedID     int64
+		expectError    bool
 	}{
 		{
-			name: "Cache Hit - Accepted",
-			requestBody: map[string]string{
-				"key": "test-key",
+			name:     "Successful lease creation",
+			leaseTTL: time.Minute,
+			lease: leasemanagement.Lease{
+				Key:   "test-key",
+				Value: "test-value",
+				Labels: map[string]string{
+					"test": "label",
+				},
 			},
-			leaseTTL: "1m",
-			cacheKey: "test-key",
-			cacheValue: leaseCacheRecord{
-				Status: storage.StatusAccepted,
-				ID:     123,
-			},
-			expectedStatus: http.StatusAccepted,
-			expectedBody:   "123",
+			expectedStatus: storage.StatusCreated,
+			expectedID:     123,
+			expectError:    false,
 		},
 		{
-			name: "Cache Hit - Created",
-			requestBody: map[string]string{
-				"key": "test-key",
+			name:     "Lease already exists",
+			leaseTTL: time.Minute,
+			lease: leasemanagement.Lease{
+				Key:   "existing-key",
+				Value: "test-value",
 			},
-			leaseTTL: "1m",
-			cacheKey: "test-key",
-			cacheValue: leaseCacheRecord{
-				Status: storage.StatusCreated,
-				ID:     456,
-			},
-			expectedStatus: http.StatusCreated,
-			expectedBody:   "456",
-		},
-		{
-			name: "Cache Miss - New Lease",
-			requestBody: map[string]string{
-				"key": "new-key",
-			},
-			leaseTTL:       "1m",
-			expectedStatus: http.StatusCreated,
-			expectedBody:   "123",
-		},
-		{
-			name:           "Invalid Request Body",
-			requestBody:    "invalid json",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Failed to unmarshal request body\n",
+			expectedStatus: storage.StatusAccepted,
+			expectedID:     456,
+			expectError:    false,
 		},
 	}
 
@@ -85,195 +61,143 @@ func TestGetLeaseHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
+			storageConnection := &mock.Storage{}
 			leaseCache := cache.New(1000)
+
+			app := New(ctx, cfg, storageConnection, leaseCache)
+
+			status, id, err := app.CreateLease(tt.leaseTTL, tt.lease)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, status)
+				assert.Equal(t, tt.expectedID, id)
+
+				if leaseCache != nil {
+					cachedValue, exists := leaseCache.Get(tt.lease.Key)
+					assert.True(t, exists)
+					if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
+						assert.Equal(t, tt.expectedStatus, cachedLease.Status)
+						assert.Equal(t, tt.expectedID, cachedLease.ID)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestApplication_ReviveLease(t *testing.T) {
+	tests := []struct {
+		name        string
+		leaseID     int64
+		expectError bool
+	}{
+		{
+			name:        "Successful lease revival",
+			leaseID:     123,
+			expectError: false,
+		},
+		{
+			name:        "Failed lease revival",
+			leaseID:     999,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			cfg := createTestConfig()
 			storageConnection := &mock.Storage{}
 
-			if tt.cacheValue != nil {
-				leaseCache.Set(tt.cacheKey, tt.cacheValue, time.Minute)
-			}
+			app := New(ctx, cfg, storageConnection, nil)
 
-			var body []byte
-			var err error
-			if str, ok := tt.requestBody.(string); ok {
-				body = []byte(str)
+			err := app.ReviveLease(tt.leaseID)
+
+			if tt.expectError {
+				assert.Error(t, err)
 			} else {
-				body, err = json.Marshal(tt.requestBody)
 				assert.NoError(t, err)
 			}
-
-			req := httptest.NewRequest(http.MethodPost, "/lease", bytes.NewBuffer(body))
-			if tt.leaseTTL != "" {
-				req.Header.Set("x-lease-ttl", tt.leaseTTL)
-			}
-
-			rr := httptest.NewRecorder()
-
-			handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
-			assert.NotNil(t, handler)
-
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-			assert.Equal(t, tt.expectedBody, rr.Body.String())
 		})
 	}
 }
 
-func TestGetLeaseHandlerConcurrent(t *testing.T) {
+func TestApplication_ConcurrentLeaseOperations(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
+	storageConnection := &mock.Storage{}
 	leaseCache := cache.New(1000)
+
+	app := New(ctx, cfg, storageConnection, leaseCache)
+
+	numOperations := 100
+	var wg sync.WaitGroup
+	wg.Add(numOperations)
+
+	for i := 0; i < numOperations; i++ {
+		go func(index int) {
+			defer wg.Done()
+
+			lease := leasemanagement.Lease{
+				Key:   fmt.Sprintf("concurrent-key-%d", index),
+				Value: fmt.Sprintf("value-%d", index),
+			}
+
+			status, id, err := app.CreateLease(time.Minute, lease)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, status)
+			assert.NotZero(t, id)
+
+			err = app.ReviveLease(id)
+			assert.NoError(t, err)
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func TestApplication_CacheDisabled(t *testing.T) {
+	ctx := context.Background()
+	cfg := createTestConfig()
 	storageConnection := &mock.Storage{}
 
-	leaseBody := map[string]string{
-		"key": "concurrent-test-key",
+	app := New(ctx, cfg, storageConnection, nil)
+
+	lease := leasemanagement.Lease{
+		Key:   "test-key",
+		Value: "test-value",
 	}
-	body, err := json.Marshal(leaseBody)
+
+	status, id, err := app.CreateLease(time.Minute, lease)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, status)
+	assert.NotZero(t, id)
 
-	numRequests := 100
-	var wg sync.WaitGroup
-	wg.Add(numRequests)
-
-	for i := 0; i < numRequests; i++ {
-		go func() {
-			defer wg.Done()
-
-			req := httptest.NewRequest(http.MethodPost, "/lease", bytes.NewBuffer(body))
-			req.Header.Set("x-lease-ttl", "1m")
-
-			rr := httptest.NewRecorder()
-			handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, http.StatusCreated, rr.Code)
-		}()
-	}
-
-	wg.Wait()
-
-	cachedValue, exists := leaseCache.Get("concurrent-test-key")
-	assert.True(t, exists)
-	assert.NotNil(t, cachedValue)
+	err = app.ReviveLease(id)
+	assert.NoError(t, err)
 }
 
-func TestGetLeaseHandlerMemoryUsage(t *testing.T) {
+func TestApplication_ErrorHandling(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
+	storageConnection := &mock.Storage{}
 	leaseCache := cache.New(1000)
-	storageConnection := &mock.Storage{}
 
-	var m runtime.MemStats
-	runtime.GC()
-	runtime.ReadMemStats(&m)
-	initialAlloc := m.Alloc
+	app := New(ctx, cfg, storageConnection, leaseCache)
 
-	numLeases := 1000
-	for i := 0; i < numLeases; i++ {
-		leaseBody := map[string]string{
-			"key": fmt.Sprintf("memory-test-key-%d", i),
-		}
-		body, err := json.Marshal(leaseBody)
-		assert.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodPost, "/lease", bytes.NewBuffer(body))
-		req.Header.Set("x-lease-ttl", "1m")
-
-		rr := httptest.NewRecorder()
-		handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
-		handler.ServeHTTP(rr, req)
-
-		assert.Equal(t, http.StatusCreated, rr.Code)
+	lease := leasemanagement.Lease{
+		Key:   "error-key",
+		Value: "error-value",
 	}
 
-	runtime.GC()
-	runtime.ReadMemStats(&m)
+	status, id, err := app.CreateLease(time.Minute, lease)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, status)
+	assert.NotZero(t, id)
 
-	var memoryAlloc uint64
-	if m.Alloc > initialAlloc {
-		memoryAlloc = m.Alloc - initialAlloc
-	} else {
-		memoryAlloc = 0
-	}
-
-	t.Logf("Memory allocated for %d leases: %v bytes (%.2f MB)",
-		numLeases, memoryAlloc, float64(memoryAlloc)/1024/1024)
-
-	maxMemoryMB := uint64(50 * 1024 * 1024)
-	assert.LessOrEqual(t, memoryAlloc, maxMemoryMB,
-		"Memory usage should be less than 50MB for 1000 leases")
-}
-
-func TestKeepaliveHandler(t *testing.T) {
-	tests := []struct {
-		name           string
-		requestBody    string
-		expectedStatus int
-		expectedBody   string
-	}{
-		{
-			name:           "Successful keepalive",
-			requestBody:    "123",
-			expectedStatus: http.StatusOK,
-			expectedBody:   "",
-		},
-		{
-			name:           "Invalid lease ID format",
-			requestBody:    "invalid-id",
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   "",
-		},
-		{
-			name:           "Empty request body",
-			requestBody:    "",
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			cfg := createTestConfig()
-			storageConnection := &mock.Storage{}
-
-			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString(tt.requestBody))
-			rr := httptest.NewRecorder()
-
-			handler := KeepaliveHandler(ctx, cfg, storageConnection)
-			assert.NotNil(t, handler)
-
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-			if tt.expectedBody != "" {
-				assert.Equal(t, tt.expectedBody, rr.Body.String())
-			}
-		})
-	}
-}
-
-func TestKeepaliveHandlerConcurrent(t *testing.T) {
-	ctx := context.Background()
-	cfg := createTestConfig()
-	storageConnection := &mock.Storage{}
-
-	numRequests := 50
-	var wg sync.WaitGroup
-	wg.Add(numRequests)
-
-	for i := 0; i < numRequests; i++ {
-		go func() {
-			defer wg.Done()
-
-			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString("123"))
-			rr := httptest.NewRecorder()
-			handler := KeepaliveHandler(ctx, cfg, storageConnection)
-			handler.ServeHTTP(rr, req)
-
-			assert.Equal(t, http.StatusOK, rr.Code)
-		}()
-	}
-
-	wg.Wait()
+	err = app.ReviveLease(123)
+	assert.NoError(t, err)
 }

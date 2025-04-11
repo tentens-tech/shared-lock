@@ -33,8 +33,9 @@ type Config struct {
 }
 
 type ServerCfg struct {
-	Port    string
-	Timeout ServerTimeout
+	Port         string
+	PPROFEnabled bool
+	Timeout      ServerTimeout
 }
 
 type ServerTimeout struct {
@@ -74,7 +75,8 @@ func NewConfig() *Config {
 
 	return &Config{
 		Server: ServerCfg{
-			Port: getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
+			Port:         getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
+			PPROFEnabled: getEnv("SHARED_LOCK_PPROF_ENABLED", false),
 			Timeout: ServerTimeout{
 				Read:     getEnv("SHARED_LOCK_SERVER_READ_TIMEOUT", DefaultServerReadTimeout),
 				Write:    getEnv("SHARED_LOCK_SERVER_WRITE_TIMEOUT", DefaultServerWriteTimeout),
