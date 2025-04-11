@@ -3,6 +3,8 @@ package http
 import (
 	"net/http"
 
+	_ "net/http/pprof"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tentens-tech/shared-lock/internal/application"
 	"github.com/tentens-tech/shared-lock/internal/config"
@@ -25,6 +27,7 @@ func (s *Server) Start(cfg *config.ServerCfg) error {
 	mux.HandleFunc("/keepalive", s.handleKeepalive)
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/debug/pprof/", http.HandlerFunc(http.DefaultServeMux.ServeHTTP))
 
 	s.Server = &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -38,11 +41,11 @@ func (s *Server) Start(cfg *config.ServerCfg) error {
 }
 
 func (s *Server) handleLease(w http.ResponseWriter, r *http.Request) {
-	application.GetLeaseHandler(s.app.Ctx, s.app.Config, s.app.LeaseCache)(w, r)
+	application.GetLeaseHandler(s.app.Ctx, s.app.Config, s.app.StorageConnection, s.app.LeaseCache)(w, r)
 }
 
 func (s *Server) handleKeepalive(w http.ResponseWriter, r *http.Request) {
-	application.KeepaliveHandler(s.app.Ctx, s.app.Config)(w, r)
+	application.KeepaliveHandler(s.app.Ctx, s.app.Config, s.app.StorageConnection)(w, r)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

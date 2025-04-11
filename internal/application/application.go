@@ -15,8 +15,6 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/metrics"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
-	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/etcd"
-	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/mock"
 )
 
 const (
@@ -29,40 +27,22 @@ type leaseCacheRecord struct {
 }
 
 type Application struct {
-	Config     *config.Config
-	LeaseCache *cache.Cache
-	Ctx        context.Context
+	Config            *config.Config
+	LeaseCache        *cache.Cache
+	Ctx               context.Context
+	StorageConnection storage.Storage
 }
 
-func New(ctx context.Context, config *config.Config, leaseCache *cache.Cache) *Application {
+func New(ctx context.Context, config *config.Config, storageConnection storage.Storage, leaseCache *cache.Cache) *Application {
 	return &Application{
-		Config:     config,
-		LeaseCache: leaseCache,
-		Ctx:        ctx,
+		Config:            config,
+		LeaseCache:        leaseCache,
+		StorageConnection: storageConnection,
+		Ctx:               ctx,
 	}
 }
 
-func newStorageConnection(cfg *config.Config) (storage.Storage, error) {
-	if cfg.Storage.Type == "etcd" {
-		storageConnection, err := etcd.New(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create etcd storage connection, %v", err)
-		}
-		return storageConnection, nil
-	} else if cfg.Storage.Type == "mock" {
-		return &mock.Storage{}, nil
-	}
-
-	return nil, fmt.Errorf("unsupported storage type: %v", cfg.Storage.Type)
-}
-
-func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCache *cache.Cache) http.HandlerFunc {
-	storageConnection, err := newStorageConnection(configuration)
-	if err != nil {
-		log.Errorf("Failed to connect to storage adapater, %v", err)
-		return nil
-	}
-
+func GetLeaseHandler(ctx context.Context, configuration *config.Config, storageConnection storage.Storage, leaseCache *cache.Cache) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		defer func() {
@@ -142,13 +122,7 @@ func GetLeaseHandler(ctx context.Context, configuration *config.Config, leaseCac
 	}
 }
 
-func KeepaliveHandler(ctx context.Context, configuration *config.Config) http.HandlerFunc {
-	storageConnection, err := newStorageConnection(configuration)
-	if err != nil {
-		log.Errorf("Failed to connect to storage adapater, %v", err)
-		return nil
-	}
-
+func KeepaliveHandler(ctx context.Context, configuration *config.Config, storageConnection storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var leaseID int64

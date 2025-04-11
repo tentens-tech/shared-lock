@@ -16,6 +16,7 @@ import (
 	"github.com/tentens-tech/shared-lock/internal/config"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage"
+	"github.com/tentens-tech/shared-lock/internal/infrastructure/storage/mock"
 )
 
 func createTestConfig() *config.Config {
@@ -85,6 +86,7 @@ func TestGetLeaseHandler(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
 			leaseCache := cache.New(1000)
+			storageConnection := &mock.Storage{}
 
 			if tt.cacheValue != nil {
 				leaseCache.Set(tt.cacheKey, tt.cacheValue, time.Minute)
@@ -106,7 +108,7 @@ func TestGetLeaseHandler(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 
-			handler := GetLeaseHandler(ctx, cfg, leaseCache)
+			handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
 			assert.NotNil(t, handler)
 
 			handler.ServeHTTP(rr, req)
@@ -121,6 +123,7 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
 	leaseCache := cache.New(1000)
+	storageConnection := &mock.Storage{}
 
 	leaseBody := map[string]string{
 		"key": "concurrent-test-key",
@@ -140,7 +143,7 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 			req.Header.Set("x-lease-ttl", "1m")
 
 			rr := httptest.NewRecorder()
-			handler := GetLeaseHandler(ctx, cfg, leaseCache)
+			handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
 			handler.ServeHTTP(rr, req)
 
 			assert.Equal(t, http.StatusCreated, rr.Code)
@@ -158,6 +161,7 @@ func TestGetLeaseHandlerMemoryUsage(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
 	leaseCache := cache.New(1000)
+	storageConnection := &mock.Storage{}
 
 	var m runtime.MemStats
 	runtime.GC()
@@ -176,7 +180,7 @@ func TestGetLeaseHandlerMemoryUsage(t *testing.T) {
 		req.Header.Set("x-lease-ttl", "1m")
 
 		rr := httptest.NewRecorder()
-		handler := GetLeaseHandler(ctx, cfg, leaseCache)
+		handler := GetLeaseHandler(ctx, cfg, storageConnection, leaseCache)
 		handler.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusCreated, rr.Code)
@@ -231,11 +235,12 @@ func TestKeepaliveHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
+			storageConnection := &mock.Storage{}
 
 			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString(tt.requestBody))
 			rr := httptest.NewRecorder()
 
-			handler := KeepaliveHandler(ctx, cfg)
+			handler := KeepaliveHandler(ctx, cfg, storageConnection)
 			assert.NotNil(t, handler)
 
 			handler.ServeHTTP(rr, req)
@@ -251,6 +256,7 @@ func TestKeepaliveHandler(t *testing.T) {
 func TestKeepaliveHandlerConcurrent(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
+	storageConnection := &mock.Storage{}
 
 	numRequests := 50
 	var wg sync.WaitGroup
@@ -262,7 +268,7 @@ func TestKeepaliveHandlerConcurrent(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString("123"))
 			rr := httptest.NewRecorder()
-			handler := KeepaliveHandler(ctx, cfg)
+			handler := KeepaliveHandler(ctx, cfg, storageConnection)
 			handler.ServeHTTP(rr, req)
 
 			assert.Equal(t, http.StatusOK, rr.Code)
