@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	DefaultPrefix               = "/shared-lock/"
-	DefaultLeaseDurationSeconds = 10
+	DefaultPrefix = "/shared-lock/"
 )
 
-func CreateLease(ctx context.Context, storageConnection storage.Storage, data []byte, leaseTTL time.Duration, lease Lease) (string, int64, error) {
+func CreateLease(ctx context.Context, storageConnection storage.Storage, leaseTTL time.Duration, lease Lease) (string, int64, error) {
 	var err error
 	var leaseID int64
 	var leaseStatus string
@@ -33,7 +32,7 @@ func CreateLease(ctx context.Context, storageConnection storage.Storage, data []
 	}
 
 	log.Debugf("Creating lease for the key: %v", key)
-	leaseStatus, leaseID, err = storageConnection.CreateLease(ctx, key, int64(leaseTTL.Seconds()), data)
+	leaseStatus, leaseID, err = storageConnection.CreateLease(ctx, key, int64(leaseTTL.Seconds()), []byte(lease.Value))
 	if err != nil {
 		return "", 0, err
 	}

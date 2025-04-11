@@ -145,7 +145,7 @@ func TestCreateLease(t *testing.T) {
 				},
 			}
 
-			status, id, err := CreateLease(context.Background(), mockStorage, tt.data, tt.leaseTTL, tt.lease)
+			status, id, err := CreateLease(context.Background(), mockStorage, tt.leaseTTL, tt.lease)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)

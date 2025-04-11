@@ -10,19 +10,21 @@ import (
 )
 
 const (
+	DefaultDebugMode                = false
 	DefaultServerPort               = "8080"
 	DefaultServerReadTimeout        = 10 * time.Second
 	DefaultServerWriteTimeout       = 10 * time.Second
 	DefaultServerIdleTimeout        = 120 * time.Second
 	DefaultServerShutdownTimeout    = 10 * time.Second
+	DefaultServerPPROFEnabled       = false
 	DefaultStorageType              = "etcd"
 	DefaultEtcdAddrList             = "http://localhost:2379"
 	DefaultEtcdTLSEnabled           = false
 	DefaultEtcdServerCACertPath     = "/etc/etcd/ca.crt"
 	DefaultEtcdServerClientCertPath = "/etc/etcd/client.crt"
 	DefaultEtcdServerClientKeyPath  = "/etc/etcd/client.key"
-	DefaultCacheSize                = 1000
 	DefaultCacheEnabled             = false
+	DefaultCacheSize                = 1000
 )
 
 type Config struct {
@@ -33,8 +35,9 @@ type Config struct {
 }
 
 type ServerCfg struct {
-	Port    string
-	Timeout ServerTimeout
+	Port         string
+	PPROFEnabled bool
+	Timeout      ServerTimeout
 }
 
 type ServerTimeout struct {
@@ -74,7 +77,8 @@ func NewConfig() *Config {
 
 	return &Config{
 		Server: ServerCfg{
-			Port: getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
+			Port:         getEnv("SHARED_LOCK_SERVER_PORT", DefaultServerPort),
+			PPROFEnabled: getEnv("SHARED_LOCK_PPROF_ENABLED", bool(DefaultServerPPROFEnabled)),
 			Timeout: ServerTimeout{
 				Read:     getEnv("SHARED_LOCK_SERVER_READ_TIMEOUT", DefaultServerReadTimeout),
 				Write:    getEnv("SHARED_LOCK_SERVER_WRITE_TIMEOUT", DefaultServerWriteTimeout),
@@ -96,7 +100,7 @@ func NewConfig() *Config {
 			Enabled: getEnv("SHARED_LOCK_CACHE_ENABLED", DefaultCacheEnabled),
 			Size:    getEnv("SHARED_LOCK_CACHE_SIZE", DefaultCacheSize),
 		},
-		Debug: getEnv("SHARED_LOCK_DEBUG", false),
+		Debug: getEnv("SHARED_LOCK_DEBUG", bool(DefaultDebugMode)),
 	}
 }
 

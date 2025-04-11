@@ -20,7 +20,6 @@ To run this project, use:
 ```
 
 ## Service configuration
-Possible configuration via env params:
 | Environment Variable                  | Default Value                     | Description                                      |
 |---------------------------------------|-----------------------------------|--------------------------------------------------|
 | SHARED_LOCK_SERVER_PORT               | 8080                              | Port on which the server will run                |
@@ -28,11 +27,15 @@ Possible configuration via env params:
 | SHARED_LOCK_SERVER_WRITE_TIMEOUT      | 10s                               | Server write timeout duration                    |
 | SHARED_LOCK_SERVER_IDLE_TIMEOUT       | 120s                              | Server idle timeout duration                     |
 | SHARED_LOCK_SERVER_SHUTDOWN_TIMEOUT   | 10s                               | Server shutdown timeout duration                 |
-| SHARED_LOCK_ETCD_ADDR_LIST            | localhost:2379                    | Comma-separated list of etcd endpoints           |
+| SHARED_LOCK_PPROF_ENABLED             | false                             | Enable pprof for debugging                       |
+| SHARED_LOCK_STORAGE_TYPE              | etcd                              | Storage type to use (`etcd` or `mock`)           |
+| SHARED_LOCK_ETCD_ADDR_LIST            | http://localhost:2379             | Comma-separated list of etcd endpoints           |
 | SHARED_LOCK_ETCD_TLS                  | false                             | Enable TLS for etcd connections                  |
 | SHARED_LOCK_CA_CERT_PATH              | /etc/etcd/ca.crt                  | Path to the CA certificate for etcd              |
 | SHARED_LOCK_CLIENT_CERT_PATH          | /etc/etcd/client.crt              | Path to the client certificate for etcd          |
 | SHARED_LOCK_CLIENT_KEY_PATH           | /etc/etcd/client.key              | Path to the client key for etcd                  |
+| SHARED_LOCK_CACHE_ENABLED             | false                             | Enable in-memory cache for leases                |
+| SHARED_LOCK_CACHE_SIZE                | 1000                              | Maximum number of items in the cache             |
 | SHARED_LOCK_DEBUG                     | false                             | Toggle for debug mode                            |
 
 ## How to deploy this project
