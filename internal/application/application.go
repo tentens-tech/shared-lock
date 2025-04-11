@@ -56,16 +56,16 @@ func (a *Application) ReviveLease(leaseID int64) error {
 	return nil
 }
 
-func (a *Application) CheckLeasePresenceInCache(key string) (bool, error) {
+func (a *Application) CheckLeasePresenceInCache(key string) bool {
 	if a.leaseCache == nil {
-		return false, nil
+		return false
 	}
 
 	if _, exists := a.leaseCache.Get(key); exists {
-		return true, nil
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 func (a *Application) GetLeaseFromCache(key string) (string, int64) {

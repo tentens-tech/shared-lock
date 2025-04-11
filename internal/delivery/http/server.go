@@ -83,11 +83,7 @@ func (s *Server) handleLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isLeasePresentInCache, err := s.app.CheckLeasePresenceInCache(lease.Key)
-	if err != nil {
-		log.Errorf("Failed to check lease presence in cache, %v", err)
-	}
-
+	isLeasePresentInCache := s.app.CheckLeasePresenceInCache(lease.Key)
 	if isLeasePresentInCache {
 		leaseStatus, leaseID = s.app.GetLeaseFromCache(lease.Key)
 	}
