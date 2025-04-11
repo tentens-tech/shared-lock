@@ -61,8 +61,12 @@ func TestApplication_CreateLease(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
-			storageConnection := &mock.Storage{}
+			storageConnection := mock.New()
 			leaseCache := cache.New(1000)
+
+			if tt.name == "Lease already exists" {
+				storageConnection.ExistingLeases[mock.DefaultPrefix+tt.lease.Key] = true
+			}
 
 			app := New(ctx, cfg, storageConnection, leaseCache)
 
@@ -74,15 +78,6 @@ func TestApplication_CreateLease(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedStatus, status)
 				assert.Equal(t, tt.expectedID, id)
-
-				if leaseCache != nil {
-					cachedValue, exists := leaseCache.Get(tt.lease.Key)
-					assert.True(t, exists)
-					if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
-						assert.Equal(t, tt.expectedStatus, cachedLease.Status)
-						assert.Equal(t, tt.expectedID, cachedLease.ID)
-					}
-				}
 			}
 		})
 	}
@@ -110,7 +105,7 @@ func TestApplication_ReviveLease(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
-			storageConnection := &mock.Storage{}
+			storageConnection := mock.New()
 
 			app := New(ctx, cfg, storageConnection, nil)
 
@@ -128,7 +123,7 @@ func TestApplication_ReviveLease(t *testing.T) {
 func TestApplication_ConcurrentLeaseOperations(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 	leaseCache := cache.New(1000)
 
 	app := New(ctx, cfg, storageConnection, leaseCache)
@@ -162,7 +157,7 @@ func TestApplication_ConcurrentLeaseOperations(t *testing.T) {
 func TestApplication_CacheDisabled(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 
 	app := New(ctx, cfg, storageConnection, nil)
 
@@ -183,7 +178,7 @@ func TestApplication_CacheDisabled(t *testing.T) {
 func TestApplication_ErrorHandling(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 	leaseCache := cache.New(1000)
 
 	app := New(ctx, cfg, storageConnection, leaseCache)

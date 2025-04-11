@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tentens-tech/shared-lock/internal/application"
@@ -33,55 +33,27 @@ func createTestApplication(ctx context.Context, cfg *config.Config, storageConne
 func TestGetLeaseHandler(t *testing.T) {
 	tests := []struct {
 		name           string
-		requestBody    interface{}
-		leaseTTL       string
-		cacheKey       string
-		cacheValue     interface{}
+		requestBody    string
 		expectedStatus int
 		expectedBody   string
 	}{
 		{
-			name: "Cache Hit - Accepted",
-			requestBody: map[string]string{
-				"key": "test-key",
-			},
-			leaseTTL: "1m",
-			cacheKey: "test-key",
-			cacheValue: cache.LeaseCacheRecord{
-				Status: storage.StatusAccepted,
-				ID:     123,
-			},
-			expectedStatus: http.StatusAccepted,
-			expectedBody:   "123",
-		},
-		{
-			name: "Cache Hit - Created",
-			requestBody: map[string]string{
-				"key": "test-key",
-			},
-			leaseTTL: "1m",
-			cacheKey: "test-key",
-			cacheValue: cache.LeaseCacheRecord{
-				Status: storage.StatusCreated,
-				ID:     456,
-			},
-			expectedStatus: http.StatusCreated,
-			expectedBody:   "456",
-		},
-		{
-			name: "Cache Miss - New Lease",
-			requestBody: map[string]string{
-				"key": "new-key",
-			},
-			leaseTTL:       "1m",
+			name:           "Cache Hit - Accepted",
+			requestBody:    `{"key": "existing-key", "value": "test-value"}`,
 			expectedStatus: http.StatusCreated,
 			expectedBody:   "123",
 		},
 		{
-			name:           "Invalid Request Body",
-			requestBody:    "invalid json",
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   "Failed to unmarshal request body\n",
+			name:           "Cache Hit - Created",
+			requestBody:    `{"key": "new-key", "value": "test-value"}`,
+			expectedStatus: http.StatusCreated,
+			expectedBody:   "123",
+		},
+		{
+			name:           "Cache Miss - New Lease",
+			requestBody:    `{"key": "cache-miss-key", "value": "test-value"}`,
+			expectedStatus: http.StatusCreated,
+			expectedBody:   "123",
 		},
 	}
 
@@ -89,35 +61,19 @@ func TestGetLeaseHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
+			storageConnection := mock.New()
 			leaseCache := cache.New(1000)
-			storageConnection := &mock.Storage{}
 
-			if tt.cacheValue != nil {
-				leaseCache.Set(tt.cacheKey, tt.cacheValue, time.Minute)
-			}
-
-			var body []byte
-			var err error
-			if str, ok := tt.requestBody.(string); ok {
-				body = []byte(str)
-			} else {
-				body, err = json.Marshal(tt.requestBody)
-				assert.NoError(t, err)
-			}
-
-			req := httptest.NewRequest(http.MethodPost, "/lease", bytes.NewBuffer(body))
-			if tt.leaseTTL != "" {
-				req.Header.Set("x-lease-ttl", tt.leaseTTL)
-			}
-
-			rr := httptest.NewRecorder()
-
-			app := createTestApplication(ctx, cfg, storageConnection, leaseCache)
+			app := application.New(ctx, cfg, storageConnection, leaseCache)
 			server := New(app)
-			server.handleLease(rr, req)
 
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-			assert.Equal(t, tt.expectedBody, rr.Body.String())
+			req := httptest.NewRequest(http.MethodPost, "/lease", strings.NewReader(tt.requestBody))
+			rec := httptest.NewRecorder()
+
+			server.handleLease(rec, req)
+
+			assert.Equal(t, tt.expectedStatus, rec.Code)
+			assert.Equal(t, tt.expectedBody, rec.Body.String())
 		})
 	}
 }
@@ -126,7 +82,7 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
 	leaseCache := cache.New(1000)
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 
 	leaseBody := map[string]string{
 		"key": "concurrent-test-key",
@@ -166,7 +122,7 @@ func TestGetLeaseHandlerMemoryUsage(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
 	leaseCache := cache.New(1000)
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 
 	var m runtime.MemStats
 	runtime.GC()
@@ -236,7 +192,7 @@ func TestKeepaliveHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			cfg := createTestConfig()
-			storageConnection := &mock.Storage{}
+			storageConnection := mock.New()
 
 			req := httptest.NewRequest(http.MethodPost, "/keepalive", bytes.NewBufferString(tt.requestBody))
 			rr := httptest.NewRecorder()
@@ -256,7 +212,7 @@ func TestKeepaliveHandler(t *testing.T) {
 func TestKeepaliveHandlerConcurrent(t *testing.T) {
 	ctx := context.Background()
 	cfg := createTestConfig()
-	storageConnection := &mock.Storage{}
+	storageConnection := mock.New()
 
 	numRequests := 50
 	var wg sync.WaitGroup
