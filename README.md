@@ -18,6 +18,7 @@ To run this project, use:
 ``` bash
 ./shared-lock serve
 ```
+
 ## Service configuration
 | Environment Variable                  | Default Value                     | Description                                      |
 |---------------------------------------|-----------------------------------|--------------------------------------------------|
