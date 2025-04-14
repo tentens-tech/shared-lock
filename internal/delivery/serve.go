@@ -8,10 +8,9 @@ import (
 	"os/signal"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/tentens-tech/shared-lock/internal/application"
+	"github.com/tentens-tech/shared-lock/internal/bootstrap"
 	"github.com/tentens-tech/shared-lock/internal/config"
 	httpserver "github.com/tentens-tech/shared-lock/internal/delivery/http"
-	"github.com/tentens-tech/shared-lock/internal/infrastructure/cache"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/spf13/cobra"
@@ -38,16 +37,13 @@ func sharedLockProcess(cmd *cobra.Command, _ []string) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	var leaseCache *cache.Cache
-	if configuration.Cache.Enabled {
-		log.Info("Cache is enabled")
-		leaseCache = cache.New(configuration.Cache.Size)
-	} else {
-		log.Info("Cache is disabled")
+	app, err := bootstrap.NewApplication(errGroupCtx, configuration)
+	if err != nil {
+		log.Errorf("Failed to create application instance: %v", err)
+		return err
 	}
 
 	errGroup.Go(func() error {
-		app := application.New(errGroupCtx, configuration, leaseCache)
 		server := httpserver.New(app)
 
 		log.Printf("Server is starting on %s\n", configuration.Server.Port)
