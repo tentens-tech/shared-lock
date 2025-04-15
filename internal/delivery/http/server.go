@@ -146,6 +146,9 @@ func (s *Server) handleKeepalive(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to prolong lease", http.StatusNoContent)
 		return
 	}
+
+	log.Debugf("Lease %v prolonged successfully", leaseID)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

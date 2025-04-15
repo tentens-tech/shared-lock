@@ -59,7 +59,7 @@ Exampler app that demonstrates shared-lock usage in case of need to guarantee th
    - **Request Body**:
      - JSON object representing the lease details.
    - **Responses**:
-     - `202 Accepted`: Lease request accepted.
+     - `202 Accepted`: Lease request accepted but lease not granted (already present).
      - `201 Created`: Lease successfully created.
      - `500 Internal Server Error`: Failed to create lease.
    - **Example**:
@@ -75,8 +75,9 @@ Exampler app that demonstrates shared-lock usage in case of need to guarantee th
    - **Method**: `POST`
    - **Request Body**:
      - JSON object representing the lease details.
-   - **Responses**:
-     - `204 No Content`: Lease successfully prolonged.
+   - **Responses**:\
+     - `200 OK`: Lease successfully renewed.
+     - `204 No Content`: Failed to prolong lease.
      - `400 Bad Request`: Failed to unmarshal request body.
      - `500 Internal Server Error`: Failed to parse lease ID or prolong lease.
    - **Example**:
