@@ -113,7 +113,6 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Check that all keys were cached
 	for i := 0; i < numRequests; i++ {
 		key := "concurrent-test-key-" + fmt.Sprint(i)
 		cachedValue, exists := leaseCache.Get(key)
