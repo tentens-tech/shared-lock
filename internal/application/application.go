@@ -68,6 +68,10 @@ func (a *Application) ReviveLease(leaseID int64) error {
 }
 
 func (a *Application) checkCreatedLeasePresenceInCache(key string) int64 {
+	if a.leaseCache == nil {
+		return 0
+	}
+
 	if cachedValue, exists := a.leaseCache.Get(key); exists {
 		if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
 			if cachedLease.Status == "created" {
