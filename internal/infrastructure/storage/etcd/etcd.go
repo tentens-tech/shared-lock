@@ -65,21 +65,23 @@ func generateTLSConfig(cfg *config.Config) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func (etcd *Etcd) CheckLeasePresence(ctx context.Context, key string) (bool, error) {
+func (etcd *Etcd) CheckLeasePresence(ctx context.Context, key string) (int64, error) {
 	var err error
+	var leaseID int64
 	getCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
 	resp, err := etcd.Client.Get(getCtx, key)
 	cancel()
 	if err != nil {
-		return false, fmt.Errorf("failed to get key from etcd: %v", err)
+		return leaseID, fmt.Errorf("failed to get key from etcd: %v", err)
 	}
 	if len(resp.Kvs) != 0 {
 		log.Debugf("Lock %v, already exists", key)
-		return true, nil
+		leaseID = resp.Kvs[0].Lease
+		return leaseID, nil
 	}
 
-	return false, nil
+	return leaseID, nil
 }
 
 func (etcd *Etcd) CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {

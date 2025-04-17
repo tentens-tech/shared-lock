@@ -12,32 +12,36 @@ const DefaultPrefix = "/shared-lock/"
 
 type Storage struct {
 	mu             sync.RWMutex
-	ExistingLeases map[string]bool
+	ExistingLeases map[string]int64
 }
 
 func New() *Storage {
 	return &Storage{
-		ExistingLeases: make(map[string]bool),
+		ExistingLeases: make(map[string]int64),
 	}
 }
 
-func (s *Storage) CheckLeasePresence(ctx context.Context, key string) (bool, error) {
+func (s *Storage) CheckLeasePresence(ctx context.Context, key string) (int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	leaseKey := DefaultPrefix + key
-	return s.ExistingLeases[leaseKey], nil
+	if leaseID, exists := s.ExistingLeases[leaseKey]; exists {
+		return leaseID, nil
+	}
+	return 0, nil
 }
 
 func (s *Storage) CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.ExistingLeases[key] {
-		return storage.StatusAccepted, 456, nil
+	if leaseID, exists := s.ExistingLeases[key]; exists {
+		return storage.StatusAccepted, leaseID, nil
 	}
 
-	s.ExistingLeases[key] = true
-	return storage.StatusCreated, 123, nil
+	leaseID := int64(123)
+	s.ExistingLeases[key] = leaseID
+	return storage.StatusCreated, leaseID, nil
 }
 
 func (s *Storage) KeepLeaseOnce(ctx context.Context, leaseID int64) error {

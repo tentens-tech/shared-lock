@@ -18,17 +18,16 @@ func CreateLease(ctx context.Context, storageConnection storage.Storage, leaseTT
 	var err error
 	var leaseID int64
 	var leaseStatus string
-	var isLeasePresent bool
 
 	key := DefaultPrefix + lease.Key
 
 	log.Debugf("Checking lease presence for the key: %v", key)
-	isLeasePresent, err = storageConnection.CheckLeasePresence(ctx, key)
+	leaseID, err = storageConnection.CheckLeasePresence(ctx, key)
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to check lease presence: %v", err)
 	}
-	if isLeasePresent {
-		return "accepted", 0, nil
+	if leaseID != 0 {
+		return "accepted", leaseID, nil
 	}
 
 	log.Debugf("Creating lease for the key: %v", key)
