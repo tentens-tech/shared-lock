@@ -52,7 +52,7 @@ func TestApplication_CreateLease(t *testing.T) {
 				Value: "test-value",
 			},
 			expectedStatus: storage.StatusAccepted,
-			expectedID:     456,
+			expectedID:     123,
 			expectError:    false,
 		},
 	}
@@ -65,7 +65,10 @@ func TestApplication_CreateLease(t *testing.T) {
 			leaseCache := cache.New(1000)
 
 			if tt.name == "Lease already exists" {
-				storageConnection.ExistingLeases[mock.DefaultPrefix+tt.lease.Key] = true
+				leaseCache.Set(tt.lease.Key, cache.LeaseCacheRecord{
+					Status: storage.StatusCreated,
+					ID:     123,
+				}, tt.leaseTTL)
 			}
 
 			app := New(ctx, cfg, storageConnection, leaseCache)

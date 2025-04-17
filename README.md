@@ -75,7 +75,7 @@ Exampler app that demonstrates shared-lock usage in case of need to guarantee th
    - **Method**: `POST`
    - **Request Body**:
      - JSON object representing the lease details.
-   - **Responses**:\
+   - **Responses**:
      - `200 OK`: Lease successfully renewed.
      - `204 No Content`: Failed to prolong lease.
      - `400 Bad Request`: Failed to unmarshal request body.

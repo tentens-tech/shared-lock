@@ -10,7 +10,7 @@ const (
 )
 
 type Storage interface {
-	CheckLeasePresence(ctx context.Context, key string) (isPresent bool, err error)
+	CheckLeasePresence(ctx context.Context, key string) (leaseID int64, err error)
 	CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (leaseStatus string, leaseID int64, err error)
 	KeepLeaseOnce(ctx context.Context, leaseID int64) error
 }

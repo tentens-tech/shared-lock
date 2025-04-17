@@ -32,7 +32,9 @@ func (a *Application) CreateLease(
 	leaseTTL time.Duration,
 	lease leasemanagement.Lease,
 ) (leaseStatus string, leaseID int64, err error) {
-	defer metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
+	defer func() {
+		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
+	}()
 
 	cachedLeaseID := a.checkCreatedLeasePresenceInCache(lease.Key)
 	if cachedLeaseID == 0 {
@@ -41,10 +43,13 @@ func (a *Application) CreateLease(
 			log.Errorf("%v", err)
 			metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, "error").Inc()
 
-			return "", 0, err
+			return "", leaseID, err
 		}
 
-		a.addLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
+		if leaseStatus == storage.StatusCreated {
+			log.Debugf("Adding to cache: %d", leaseID)
+			a.addLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
+		}
 
 		return leaseStatus, leaseID, nil
 	}

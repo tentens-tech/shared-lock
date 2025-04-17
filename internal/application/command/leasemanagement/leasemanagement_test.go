@@ -11,16 +11,16 @@ import (
 )
 
 type MockStorage struct {
-	checkLeasePresenceFunc func(ctx context.Context, key string) (bool, error)
+	checkLeasePresenceFunc func(ctx context.Context, key string) (int64, error)
 	createLeaseFunc        func(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error)
 	keepLeaseOnceFunc      func(ctx context.Context, leaseID int64) error
 }
 
-func (m *MockStorage) CheckLeasePresence(ctx context.Context, key string) (bool, error) {
+func (m *MockStorage) CheckLeasePresence(ctx context.Context, key string) (int64, error) {
 	if m.checkLeasePresenceFunc != nil {
 		return m.checkLeasePresenceFunc(ctx, key)
 	}
-	return false, nil
+	return 0, nil
 }
 
 func (m *MockStorage) CreateLease(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {
@@ -43,7 +43,7 @@ func TestCreateLease(t *testing.T) {
 		lease             Lease
 		leaseTTL          time.Duration
 		data              []byte
-		checkLeasePresent bool
+		checkLeaseID      int64
 		checkLeaseError   error
 		createLeaseStatus string
 		createLeaseID     int64
@@ -58,13 +58,13 @@ func TestCreateLease(t *testing.T) {
 			lease: Lease{
 				Key: "test-key",
 			},
-			leaseTTL:          10 * time.Second,
-			data:              []byte("test-data"),
-			checkLeasePresent: true,
-			checkLeaseError:   nil,
-			expectedStatus:    "accepted",
-			expectedID:        0,
-			expectedError:     nil,
+			leaseTTL:        10 * time.Second,
+			data:            []byte("test-data"),
+			checkLeaseID:    456,
+			checkLeaseError: nil,
+			expectedStatus:  "accepted",
+			expectedID:      456,
+			expectedError:   nil,
 		},
 		{
 			name: "Lease creation successful",
@@ -73,7 +73,7 @@ func TestCreateLease(t *testing.T) {
 			},
 			leaseTTL:          10 * time.Second,
 			data:              []byte("test-data"),
-			checkLeasePresent: false,
+			checkLeaseID:      0,
 			checkLeaseError:   nil,
 			createLeaseStatus: storage.StatusCreated,
 			createLeaseID:     123,
@@ -88,13 +88,13 @@ func TestCreateLease(t *testing.T) {
 			lease: Lease{
 				Key: "test-key",
 			},
-			leaseTTL:          10 * time.Second,
-			data:              []byte("test-data"),
-			checkLeasePresent: false,
-			checkLeaseError:   errors.New("check error"),
-			expectedStatus:    "",
-			expectedID:        0,
-			expectedError:     errors.New("failed to check lease presence: check error"),
+			leaseTTL:        10 * time.Second,
+			data:            []byte("test-data"),
+			checkLeaseID:    0,
+			checkLeaseError: errors.New("check error"),
+			expectedStatus:  "",
+			expectedID:      0,
+			expectedError:   errors.New("failed to check lease presence: check error"),
 		},
 		{
 			name: "Error creating lease",
@@ -103,7 +103,7 @@ func TestCreateLease(t *testing.T) {
 			},
 			leaseTTL:          10 * time.Second,
 			data:              []byte("test-data"),
-			checkLeasePresent: false,
+			checkLeaseID:      0,
 			checkLeaseError:   nil,
 			createLeaseStatus: "",
 			createLeaseID:     0,
@@ -119,7 +119,7 @@ func TestCreateLease(t *testing.T) {
 			},
 			leaseTTL:          10 * time.Second,
 			data:              []byte("test-data"),
-			checkLeasePresent: false,
+			checkLeaseID:      0,
 			checkLeaseError:   nil,
 			createLeaseStatus: storage.StatusCreated,
 			createLeaseID:     123,
@@ -134,8 +134,8 @@ func TestCreateLease(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage := &MockStorage{
-				checkLeasePresenceFunc: func(ctx context.Context, key string) (bool, error) {
-					return tt.checkLeasePresent, tt.checkLeaseError
+				checkLeasePresenceFunc: func(ctx context.Context, key string) (int64, error) {
+					return tt.checkLeaseID, tt.checkLeaseError
 				},
 				createLeaseFunc: func(ctx context.Context, key string, leaseTTL int64, data []byte) (string, int64, error) {
 					return tt.createLeaseStatus, tt.createLeaseID, tt.createLeaseError
