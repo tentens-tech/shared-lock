@@ -36,7 +36,7 @@ func (a *Application) CreateLease(
 		metrics.LeaseOperations.WithLabelValues(metrics.LeaseOperationGet, leaseStatus).Inc()
 	}()
 
-	cachedLeaseID := a.checkCreatedLeasePresenceInCache(lease.Key)
+	cachedLeaseID := a.checkLeasePresenceInCache(lease.Key)
 	if cachedLeaseID == 0 {
 		leaseStatus, leaseID, err = leasemanagement.CreateLease(a.ctx, a.storageConnection, leaseTTL, lease)
 		if err != nil {
@@ -46,10 +46,8 @@ func (a *Application) CreateLease(
 			return "", leaseID, err
 		}
 
-		if leaseStatus == storage.StatusCreated {
-			log.Debugf("Adding to cache: %d", leaseID)
-			a.addLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
-		}
+		log.Debugf("Adding to cache: %d", leaseID)
+		a.addLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
 
 		return leaseStatus, leaseID, nil
 	}
@@ -72,17 +70,15 @@ func (a *Application) ReviveLease(leaseID int64) error {
 	return nil
 }
 
-func (a *Application) checkCreatedLeasePresenceInCache(key string) int64 {
+func (a *Application) checkLeasePresenceInCache(key string) int64 {
 	if a.leaseCache == nil {
 		return 0
 	}
 
 	if cachedValue, exists := a.leaseCache.Get(key); exists {
 		if cachedLease, ok := cachedValue.(cache.LeaseCacheRecord); ok {
-			if cachedLease.Status == "created" {
-				log.Debugf("Cache hit for lease key: %v", key)
-				return cachedLease.ID
-			}
+			log.Debugf("Cache hit for lease key: %v", key)
+			return cachedLease.ID
 		}
 	}
 
