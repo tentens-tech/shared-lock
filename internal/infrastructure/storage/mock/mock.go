@@ -35,13 +35,12 @@ func (s *Storage) CreateLease(ctx context.Context, key string, leaseTTL int64, d
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	leaseKey := DefaultPrefix + key
-	if leaseID, exists := s.ExistingLeases[leaseKey]; exists {
+	if leaseID, exists := s.ExistingLeases[key]; exists {
 		return storage.StatusAccepted, leaseID, nil
 	}
 
 	leaseID := int64(123)
-	s.ExistingLeases[leaseKey] = leaseID
+	s.ExistingLeases[key] = leaseID
 	return storage.StatusCreated, leaseID, nil
 }
 
