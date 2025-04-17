@@ -84,12 +84,6 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 	leaseCache := cache.New(1000)
 	storageConnection := mock.New()
 
-	leaseBody := map[string]string{
-		"key": "concurrent-test-key",
-	}
-	body, err := json.Marshal(leaseBody)
-	assert.NoError(t, err)
-
 	numRequests := 100
 	var wg sync.WaitGroup
 	wg.Add(numRequests)
@@ -98,8 +92,14 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 	server := New(app)
 
 	for i := 0; i < numRequests; i++ {
-		go func() {
+		go func(i int) {
 			defer wg.Done()
+
+			leaseBody := map[string]string{
+				"key": "concurrent-test-key-" + fmt.Sprint(i),
+			}
+			body, err := json.Marshal(leaseBody)
+			assert.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/lease", bytes.NewBuffer(body))
 			req.Header.Set("x-lease-ttl", "1m")
@@ -108,14 +108,17 @@ func TestGetLeaseHandlerConcurrent(t *testing.T) {
 			server.handleLease(rr, req)
 
 			assert.Equal(t, http.StatusCreated, rr.Code)
-		}()
+		}(i)
 	}
 
 	wg.Wait()
 
-	cachedValue, exists := leaseCache.Get("concurrent-test-key")
-	assert.True(t, exists)
-	assert.NotNil(t, cachedValue)
+	for i := 0; i < numRequests; i++ {
+		key := "concurrent-test-key-" + fmt.Sprint(i)
+		cachedValue, exists := leaseCache.Get(key)
+		assert.True(t, exists, "Key %s should exist in cache", key)
+		assert.NotNil(t, cachedValue, "Cached value for key %s should not be nil", key)
+	}
 }
 
 func TestGetLeaseHandlerMemoryUsage(t *testing.T) {

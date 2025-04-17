@@ -83,25 +83,16 @@ func (s *Server) handleLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isLeasePresentInCache := s.app.CheckLeasePresenceInCache(lease.Key)
-	if isLeasePresentInCache {
-		leaseStatus, leaseID = s.app.GetLeaseFromCache(lease.Key)
+	leaseTTL, err := time.ParseDuration(r.Header.Get(defaultLeaseTTLHeader))
+	if err != nil {
+		log.Warnf("Can't parse value of %v header. Using defaultLeaseDuration for %v", defaultLeaseTTLHeader, lease.Key)
+		leaseTTL = defaultLeaseDuration
 	}
 
-	if leaseStatus == "" {
-		leaseTTL, err := time.ParseDuration(r.Header.Get(defaultLeaseTTLHeader))
-		if err != nil {
-			log.Warnf("Can't parse value of %v header. Using defaultLeaseDuration for %v", defaultLeaseTTLHeader, lease.Key)
-			leaseTTL = defaultLeaseDuration
-		}
-
-		leaseStatus, leaseID, err = s.app.CreateLease(leaseTTL, lease)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		s.app.AddLeaseToCache(lease.Key, leaseStatus, leaseID, leaseTTL)
+	leaseStatus, leaseID, err = s.app.CreateLease(leaseTTL, lease)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	switch leaseStatus {
