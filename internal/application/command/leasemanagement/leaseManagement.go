@@ -35,6 +35,9 @@ func CreateLease(ctx context.Context, storageConnection storage.Storage, leaseTT
 	if err != nil {
 		return "", 0, err
 	}
+	if leaseStatus != storage.StatusCreated {
+		return "accepted", leaseID, nil
+	}
 
 	log.Debugf("Prolong lease for the key: %v, with ttl: %v", key, leaseTTL)
 	err = storageConnection.KeepLeaseOnce(ctx, leaseID)
