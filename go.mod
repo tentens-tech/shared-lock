@@ -1,6 +1,6 @@
 module github.com/tentens-tech/shared-lock
 
-go 1.23.1
+go 1.26.3
 
 require (
 	github.com/prometheus/client_golang v1.21.1
