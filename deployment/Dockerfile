@@ -1,4 +1,4 @@
-FROM golang:1.23.1 AS builder
+FROM golang:1.26.3 AS builder
 
 ARG upx_version=4.0.0
 ARG GOPROXY
